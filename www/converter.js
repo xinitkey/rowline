@@ -381,11 +381,60 @@ class XlsxConverter {
         const info = document.createElement('div');
         info.id = 'fileInfo';
         info.className = 'file-selected';
+        
+        // Apply flex styles to align text and close button
+        info.style.display = 'flex';
+        info.style.alignItems = 'center';
+        info.style.justifyContent = 'space-between';
+        info.style.maxWidth = '100%';
+        info.style.gap = '10px';
+
         info.innerHTML = `
-            <strong>📄 ${file.name}</strong>
-            <span style="color: #666; margin-left: 1rem;">(${this.formatFileSize(file.size)})</span>
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <strong>📄 ${file.name}</strong>
+                <span style="color: #666; margin-left: 0.5rem;">(${this.formatFileSize(file.size)})</span>
+            </div>
+            <button class="remove-file-btn" type="button" title="Удалить файл">
+                ✕
+            </button>
         `;
+
+        // Style the remove button
+        const btn = info.querySelector('.remove-file-btn');
+        btn.style.background = 'none';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.color = '#d32f2f';
+        btn.style.fontSize = '1.2rem';
+        btn.style.fontWeight = 'bold';
+        btn.style.padding = '0 5px';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            this.clearSelectedFile();
+        });
+
         container.appendChild(info);
+    }
+
+    /**
+     * Clear selected file and reset UI
+     */
+    clearSelectedFile() {
+        this.selectedFile = null;
+        if (this.fileInput) {
+            this.fileInput.value = '';
+        }
+
+        const info = document.getElementById('fileInfo');
+        if (info) info.remove();
+
+        const btn = document.getElementById('convertBtn');
+        if (btn) btn.remove();
+        
+        console.log('File selection cleared');
     }
 
     /**
