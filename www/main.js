@@ -282,10 +282,10 @@ class XlsxConverter {
         if (this.templates.length > 0) {
             wrapper.innerHTML = `
                 <label for="templateSelect" style="display: block; margin-bottom: 0.5rem; color: #555;">
-                    Выберите XML шаблон:
+                    Select an XML template:
                 </label>
                 <select id="templateSelect" class="template-select">
-                    <option value="">-- Без шаблона --</option>
+                    <option value="">- Without a template -</option>
                     ${this.templates.map(t => 
                         `<option value="${t.filename}" title="${t.name}">${this.truncateText(t.name, 30)}</option>`
                     ).join('')}
@@ -294,7 +294,7 @@ class XlsxConverter {
         } else {
             wrapper.innerHTML = `
                 <p style="color: #888; font-size: 0.9rem;">
-                    Шаблоны не найдены. Файлы будут конвертированы без шаблона.
+                    No templates found. Files will be converted without a template.
                 </p>
             `;
         }
@@ -326,7 +326,7 @@ class XlsxConverter {
         
         // Validate file type
         if (!file.name.toLowerCase().endsWith('.xlsx')) {
-            this.showError('Пожалуйста, выберите файл формата .xlsx');
+            this.showError('Please select a .xlsx file');
             this.fileInput.value = '';
             this.selectedFile = null;
             return;
@@ -335,7 +335,7 @@ class XlsxConverter {
         // Validate file size (max 100MB)
         const maxSize = 100 * 1024 * 1024;
         if (file.size > maxSize) {
-            this.showError('Файл слишком большой. Максимальный размер: 100MB');
+            this.showError('File is too large. Maximum size: 100MB');
             this.fileInput.value = '';
             this.selectedFile = null;
             return;
@@ -458,7 +458,7 @@ class XlsxConverter {
      */
     async convert() {
         if (!this.selectedFile) {
-            this.showError('Пожалуйста, выберите файл для конвертации');
+            this.showError('Please select a file to convert');
             return;
         }
 
@@ -469,13 +469,13 @@ class XlsxConverter {
         this.isConverting = true;
         this.hideError();
         this.hideResult();
-        this.showProgress('Загрузка и конвертация файла...');
+        this.showProgress('Uploading and converting file...');
         
         // Disable convert button
         const convertBtn = document.getElementById('convertBtn');
         if (convertBtn) {
             convertBtn.disabled = true;
-            convertBtn.textContent = 'Конвертация...';
+            convertBtn.textContent = 'Converting...';
         }
 
         try {
@@ -501,7 +501,7 @@ class XlsxConverter {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.detail || `Ошибка сервера: ${response.status}`);
+                throw new Error(errorData.detail || `Server error: ${response.status}`);
             }
 
             // Get filename from Content-Disposition header
@@ -539,7 +539,7 @@ class XlsxConverter {
     /**
      * Show progress indicator
      */
-    showProgress(message = 'Обработка...') {
+    showProgress(message = 'Processing...') {
         if (this.progressSection) {
             this.progressSection.style.display = 'block';
         }
@@ -567,7 +567,7 @@ class XlsxConverter {
         if (this.downloadLink) {
             this.downloadLink.href = downloadUrl;
             this.downloadLink.download = filename;
-            this.downloadLink.textContent = `⬇️ Скачать ${filename}`;
+            this.downloadLink.textContent = `⬇️ Download ${filename}`;
         }
     }
 
