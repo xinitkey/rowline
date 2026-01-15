@@ -96,7 +96,7 @@ h1 {
 }
 
 .btn-upload:hover {
-    background-color: #5563d8;
+    background: #56d0d6;
 }
 
 .btn-upload i {
@@ -232,19 +232,4 @@ footer {
     overflow: hidden;
 }
 
-.convert-btn {
-    margin-top: 1rem;
-    background: #4caf50;
-    color: white;
-    padding: 12px 64px; /* Wider padding */
-    border: none;
-    border-radius: 4px;
-    font-size: 1.1rem;
-    cursor: pointer;
-    min-width: 250px; /* Ensure minimum width */
-}
-
-.convert-btn:hover {
-    background: #45a049;
-}
 

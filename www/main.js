@@ -163,19 +163,6 @@ class XlsxConverter {
                     white-space: nowrap;
                     overflow: hidden;
                 }
-                .convert-btn {
-                    margin-top: 1rem;
-                    background: #4caf50;
-                    color: white;
-                    padding: 12px 32px;
-                    border: none;
-                    border-radius: 4px;
-                    font-size: 1.1rem;
-                    cursor: pointer;
-                }
-                .convert-btn:hover {
-                    background: #45a049;
-                }
                 .convert-btn:disabled {
                     background: #ccc;
                     cursor: not-allowed;
@@ -394,7 +381,7 @@ class XlsxConverter {
                 <strong>📄 ${file.name}</strong>
                 <span style="color: #666; margin-left: 0.5rem;">(${this.formatFileSize(file.size)})</span>
             </div>
-            <button class="remove-file-btn" type="button" title="Удалить файл">
+            <button class="remove-file-btn" type="button" title="Delete file">
                 ✕
             </button>
         `;
@@ -452,7 +439,7 @@ class XlsxConverter {
         btn.id = 'convertBtn';
         btn.type = 'button';
         btn.className = 'convert-btn';
-        btn.textContent = 'Конвертировать';
+        btn.textContent = 'Convert';
         btn.addEventListener('click', () => this.convert());
         
         container.appendChild(btn);
@@ -536,7 +523,7 @@ class XlsxConverter {
 
         } catch (error) {
             console.error('Conversion error:', error);
-            this.showError(error.message || 'Произошла ошибка при конвертации');
+            this.showError(error.message || 'Error during conversion');
         } finally {
             this.isConverting = false;
             this.hideProgress();
@@ -544,7 +531,7 @@ class XlsxConverter {
             // Re-enable convert button
             if (convertBtn) {
                 convertBtn.disabled = false;
-                convertBtn.textContent = 'Конвертировать';
+                convertBtn.textContent = 'Convert';
             }
         }
     }
