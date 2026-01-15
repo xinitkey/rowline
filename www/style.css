@@ -1,5 +1,26 @@
+header {
+  display: flex;                  /* логотип и nav в одну строку */
+  align-items: center;            /* по вертикали по центру */
+  justify-content: space-between; /* логотип слева, ссылки справа */
+  padding: 0 20px;                /* по желанию: отступы по бокам */
+}
+
+header nav {
+  display: flex;
+  gap: 16px;                      /* расстояние между ссылками */
+}
+
+header nav a {
+  white-space: nowrap;            /* чтобы не переносились */
+}
+
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    font-family: "Inter", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: <weight>;
+    font-style: normal;
+    
     background-color: #fff;
     color: #333;
     margin: 0;
