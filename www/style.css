@@ -3,6 +3,7 @@ header {
   align-items: center;            /* по вертикали по центру */
   justify-content: space-between; /* логотип слева, ссылки справа */
   padding: 0 20px;                /* по желанию: отступы по бокам */
+  background-color: #fff;
 }
 
 header nav {
@@ -21,7 +22,7 @@ body {
     font-weight: <weight>;
     font-style: normal;
     
-    background-color: #fff;
+    background-color: #F7F5F5;
     color: #333;
     margin: 0;
     padding: 0;
@@ -58,14 +59,15 @@ h1 {
 }
 
 .upload-container {
-    background-color: #f1f2f8; /* Light gray/lavender bg */
-    border: 2px dashed #9ca3cd;
-    border-radius: 6px;
+    background-color: #E3E2E2; /* Light gray/lavender bg */
+    border: 2px solid #9ca3cd;
+    border-radius: 50px;
     padding: 4rem 2rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    margin-bottom: 1rem;
 }
 
 .file-input-wrapper {
@@ -76,11 +78,11 @@ h1 {
 }
 
 .btn-upload {
-    background-color: #6a78f3;
-    color: white;
+    background-color: #43DDCB;
+    color: black;
     padding: 12px 24px;
     border: none;
-    border-radius: 4px;
+    border-radius: 50px;
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
@@ -127,6 +129,18 @@ h1 {
     margin-top: 1rem;
 }
 
+.description-container {
+    background-color: #E3E2E2; /* Light gray/lavender bg */
+    border: 0px solid #9ca3cd;
+    border-radius: 50px;
+    padding: 0rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
 a {
     color: #6a78f3;
     text-decoration: none;
@@ -140,8 +154,8 @@ footer {
     text-align: center;
     padding: 2rem;
     font-size: 0.8rem;
-    color: #888;
-    background-color: #f9f9f9;
+    color: #fff;
+    background-color: #179593;
 }
 
 /* Maintain existing hidden sections just in case */
