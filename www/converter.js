@@ -49,11 +49,20 @@ class XlsxConverter {
     }
 
     /**
+     * Helper to truncate text
+     */
+    truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    /**
      * Bind DOM elements
      */
     bindElements() {
         this.form = document.getElementById('uploadForm');
         this.fileInput = document.getElementById('xlsxFile');
+        this.uploadContainer = document.querySelector('.upload-container'); 
         this.resultSection = document.getElementById('resultSection');
         this.errorSection = document.getElementById('errorSection');
         this.errorMessage = document.getElementById('errorMessage');
@@ -148,7 +157,11 @@ class XlsxConverter {
                     font-size: 1rem;
                     border: 2px solid #9ca3cd;
                     border-radius: 4px;
-                    min-width: 200px;
+                    width: 100%;
+                    max-width: 400px; /* Limit width on larger screens */
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    overflow: hidden;
                 }
                 .convert-btn {
                     margin-top: 1rem;
@@ -184,6 +197,47 @@ class XlsxConverter {
         // Form submission
         if (this.form) {
             this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+        }
+
+        // Drag and Drop
+        if (this.uploadContainer) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                this.uploadContainer.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                this.uploadContainer.addEventListener(eventName, () => {
+                    this.uploadContainer.classList.add('highlight');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                this.uploadContainer.addEventListener(eventName, () => {
+                    this.uploadContainer.classList.remove('highlight');
+                }, false);
+            });
+
+            this.uploadContainer.addEventListener('drop', (e) => this.handleDrop(e), false);
+        }
+    }
+
+    /**
+     * Handle dropped files
+     */
+    handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files.length > 0) {
+            // Assign the dropped file to the file input
+            if (this.fileInput) {
+                this.fileInput.files = files;
+                // Trigger the selection handler manually since programmatic assignment doesn't fire 'change'
+                this.handleFileSelect({ target: this.fileInput });
+            }
         }
     }
 
@@ -244,9 +298,9 @@ class XlsxConverter {
                     Выберите XML шаблон:
                 </label>
                 <select id="templateSelect" class="template-select">
-                    <option value="">-- Без шаблона (создать новый XML) --</option>
+                    <option value="">-- Без шаблона --</option>
                     ${this.templates.map(t => 
-                        `<option value="${t.filename}">${t.name}</option>`
+                        `<option value="${t.filename}" title="${t.name}">${this.truncateText(t.name, 30)}</option>`
                     ).join('')}
                 </select>
             `;

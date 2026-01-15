@@ -1,3 +1,7 @@
+* {
+    box-sizing: border-box;
+}
+
 header {
   display: flex;                  /* логотип и nav в одну строку */
   align-items: center;            /* по вертикали по центру */
@@ -133,7 +137,7 @@ h1 {
     background-color: #E3E2E2; /* Light gray/lavender bg */
     border: 0px solid #9ca3cd;
     border-radius: 50px;
-    padding: 0rem 2rem;
+    padding: 2rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -163,3 +167,53 @@ footer {
     margin-top: 2rem;
     text-align: center;
 }
+
+/* --- Mobile / Responsive Styles --- */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    header nav {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+
+    main {
+        padding: 1rem;
+    }
+
+    h1 {
+        font-size: 1.8rem;
+    }
+
+    .subtitle {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .upload-container {
+        padding: 2rem 1rem 4rem 1rem; /* Added extra bottom padding */
+        border-radius: 30px; 
+    }
+
+    .file-input-wrapper {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .btn-upload {
+        width: 100%; 
+        justify-content: center;
+        padding: 14px 20px; 
+    }
+}
+ /* Drag & Drop highlight */
+.upload-container.highlight {
+    border-color: #6a78f3;
+    background-color: #e0e4ff;
+}
+
