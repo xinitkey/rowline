@@ -246,3 +246,159 @@ footer {
     align-items: center;
     gap: 10px;
 }
+
+/* ========== Theme Toggle (Expand) ========== */
+.theme-toggle {
+    --theme-toggle__expand--duration: 500ms;
+    background: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+    color: #2c2e3b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    transition: color 0.3s ease;
+}
+
+.theme-toggle:focus {
+    outline: none;
+}
+
+.theme-toggle:hover {
+    color: #6a78f3;
+}
+
+.theme-toggle svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Base transitions */
+.theme-toggle__expand g circle,
+.theme-toggle__expand g path {
+    transform-origin: center;
+    transition: transform calc(var(--theme-toggle__expand--duration) * 0.65) cubic-bezier(0, 0, 0, 1.25) calc(var(--theme-toggle__expand--duration) * 0.35);
+}
+
+.theme-toggle__expand :first-child path {
+    transition-property: transform, d;
+    transition-duration: calc(var(--theme-toggle__expand--duration) * 0.6);
+    transition-timing-function: cubic-bezier(0, 0, 0.5, 1);
+}
+
+/* Toggled (dark mode) state */
+.theme-toggle--toggled .theme-toggle__expand g circle {
+    transform: scale(1.6);
+    transition-delay: 0s;
+}
+
+.theme-toggle--toggled .theme-toggle__expand g path {
+    transform: scale(0.75);
+    transition-delay: 0s;
+}
+
+.theme-toggle--toggled .theme-toggle__expand :first-child path {
+    d: path("M0 0h14A1 1 0 0027 12v12H0Z");
+    transition-delay: calc(var(--theme-toggle__expand--duration) * 0.4);
+    transition-timing-function: cubic-bezier(0, 0, 0, 1.25);
+}
+
+@supports not (d: path("")) {
+    .theme-toggle--toggled .theme-toggle__expand :first-child path {
+        transform: translate3d(6px, 0, 0);
+    }
+}
+
+/* ========== Dark Theme ========== */
+[data-theme="dark"],
+[data-theme="dark"] body {
+    background-color: #1a1b26;
+    color: #c0caf5;
+}
+
+[data-theme="dark"] header {
+    background-color: #16161e;
+}
+
+[data-theme="dark"] h1 {
+    color: #c0caf5;
+}
+
+[data-theme="dark"] .subtitle {
+    color: #a9b1d6;
+}
+
+[data-theme="dark"] .upload-container {
+    background-color: #24283b;
+    border-color: #565f89;
+}
+
+[data-theme="dark"] .upload-container.highlight {
+    border-color: #7aa2f7;
+    background-color: #2a2e4a;
+}
+
+[data-theme="dark"] .description-container {
+    background-color: #24283b;
+}
+
+[data-theme="dark"] .btn-upload {
+    background-color: #1abc9c;
+    color: #1a1b26;
+}
+
+[data-theme="dark"] .btn-upload:hover {
+    background-color: #16a085;
+}
+
+[data-theme="dark"] .convert-btn {
+    background-color: #1abc9c;
+    color: #1a1b26;
+}
+
+[data-theme="dark"] a {
+    color: #7aa2f7;
+}
+
+[data-theme="dark"] nav a {
+    color: #a9b1d6;
+}
+
+[data-theme="dark"] nav a.active {
+    color: #7aa2f7;
+}
+
+[data-theme="dark"] nav a:hover {
+    color: #7aa2f7;
+}
+
+[data-theme="dark"] footer {
+    background-color: #0d7377;
+}
+
+[data-theme="dark"] .theme-toggle {
+    color: #c0caf5;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+    color: #7aa2f7;
+}
+
+[data-theme="dark"] .template-select {
+    background-color: #24283b;
+    border-color: #565f89;
+    color: #c0caf5;
+}
+
+[data-theme="dark"] .info-text {
+    color: #a9b1d6;
+}
+
+[data-theme="dark"] .terms-text {
+    color: #787c99;
+}
