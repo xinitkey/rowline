@@ -232,4 +232,17 @@ footer {
     overflow: hidden;
 }
 
-
+.convert-btn {
+    margin-top: 1rem;
+    background-color: #43DDCB;
+    color: black;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
