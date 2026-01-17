@@ -237,8 +237,15 @@
                 });
                 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Conversion failed');
+                    let errorMsg = 'Conversion failed';
+                    try {
+                        const error = await response.json();
+                        errorMsg = error.detail || errorMsg;
+                    } catch (e) {
+                        // If response is not JSON, use status text
+                        errorMsg = `${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMsg);
                 }
                 
                 // Download the result
