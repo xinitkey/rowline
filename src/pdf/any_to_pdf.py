@@ -76,7 +76,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     Convert DOCX to PDF.
     On Windows: uses installed Microsoft Word.
     On macOS: uses Word application.
-    On Linux: tries Pandoc first, then falls back to LibreOffice.
+    On Linux: tries unoconv first, then Pandoc, then LibreOffice.
     """
     import platform
     import shutil
@@ -99,9 +99,24 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                         return
             raise RuntimeError("Failed to convert DOCX to PDF using docx2pdf")
         except (RuntimeError, NotImplementedError, Exception):
-            pass  # Fall through to LibreOffice attempt
+            pass  # Fall through to alternatives
     
-    # Try Pandoc first on Linux (often gives better results)
+    # Try unoconv first on Linux (most reliable for complex documents)
+    if shutil.which("unoconv"):
+        try:
+            subprocess.run(
+                ["unoconv", "-f", "pdf", "-o", output_path, input_path],
+                capture_output=True,
+                timeout=120,
+                check=True,
+                env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+            )
+            if os.path.exists(output_path):
+                return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            pass  # Fall back to next option
+    
+    # Try Pandoc as fallback
     if shutil.which("pandoc"):
         try:
             subprocess.run(
@@ -115,15 +130,14 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             pass  # Fall back to LibreOffice
     
-    # Try LibreOffice as fallback
+    # Try LibreOffice as last resort
     out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
     
     # Check if libreoffice is installed
     if not shutil.which("libreoffice") and not shutil.which("soffice"):
         raise UnsupportedFormat(
-            "DOCX conversion requires either Microsoft Word (Windows/macOS), "
-            "Pandoc, or LibreOffice (Linux). Install with: "
-            "sudo apt install pandoc libreoffice"
+            "DOCX conversion requires unoconv, Pandoc, or LibreOffice. Install with: "
+            "sudo apt install unoconv pandoc libreoffice"
         )
     
     try:
