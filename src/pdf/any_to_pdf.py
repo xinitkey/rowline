@@ -196,8 +196,6 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                     return
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
                 pass
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-            pass  # Fall back to next option
     
     # Try Pandoc as fallback
     if shutil.which("pandoc"):
