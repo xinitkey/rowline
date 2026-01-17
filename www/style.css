@@ -285,10 +285,9 @@ footer {
     transition: transform calc(var(--theme-toggle__expand--duration) * 0.65) cubic-bezier(0, 0, 0, 1.25) calc(var(--theme-toggle__expand--duration) * 0.35);
 }
 
-.theme-toggle__expand :first-child path {
-    transition-property: transform, d;
-    transition-duration: calc(var(--theme-toggle__expand--duration) * 0.6);
-    transition-timing-function: cubic-bezier(0, 0, 0.5, 1);
+.theme-toggle__expand clipPath path {
+    transform-origin: center;
+    transition: transform calc(var(--theme-toggle__expand--duration) * 0.6) cubic-bezier(0, 0, 0.5, 1);
 }
 
 /* Toggled (dark mode) state */
@@ -302,16 +301,10 @@ footer {
     transition-delay: 0s;
 }
 
-.theme-toggle--toggled .theme-toggle__expand :first-child path {
-    d: path("M0 0h14A1 1 0 0027 12v12H0Z");
+.theme-toggle--toggled .theme-toggle__expand clipPath path {
+    transform: translateX(6px);
     transition-delay: calc(var(--theme-toggle__expand--duration) * 0.4);
     transition-timing-function: cubic-bezier(0, 0, 0, 1.25);
-}
-
-@supports not (d: path("")) {
-    .theme-toggle--toggled .theme-toggle__expand :first-child path {
-        transform: translate3d(6px, 0, 0);
-    }
 }
 
 /* ========== Dark Theme ========== */
