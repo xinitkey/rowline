@@ -71,13 +71,102 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
     pdfkit.from_file(input_path, output_path)
 
 
+def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = "http://localhost:8080") -> bool:
+    """
+    Convert document to PDF using OnlyOffice Document Server API.
+    Returns True if successful, False otherwise.
+    
+    OnlyOffice API Documentation: https://api.onlyoffice.com/editors/conversionapi
+    """
+    import requests
+    import json
+    import time
+    
+    # Check if OnlyOffice is available
+    try:
+        health_check = requests.get(f"{onlyoffice_url}/healthcheck", timeout=2)
+        if health_check.status_code != 200:
+            return False
+    except requests.exceptions.RequestException:
+        return False
+    
+    # Read file content
+    with open(input_path, "rb") as f:
+        file_content = f.read()
+    
+    # Prepare conversion request
+    conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
+    
+    # Get file extension
+    file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
+    
+    # Prepare request payload
+    payload = {
+        "async": False,
+        "filetype": file_ext,
+        "key": os.path.basename(input_path) + str(time.time()),  # Unique key
+        "outputtype": "pdf",
+        "title": os.path.basename(input_path),
+        "url": ""  # Will be filled with base64 data URL
+    }
+    
+    # Encode file as base64 data URL
+    import base64
+    file_base64 = base64.b64encode(file_content).decode('utf-8')
+    mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    data_url = f"data:{mime_type};base64,{file_base64}"
+    payload["url"] = data_url
+    
+    try:
+        # Send conversion request
+        response = requests.post(
+            conversion_api_url,
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code != 200:
+            print(f"OnlyOffice returned status {response.status_code}: {response.text}")
+            return False
+        
+        result = response.json()
+        
+        if result.get("error"):
+            print(f"OnlyOffice error: {result.get('error')}")
+            return False
+        
+        # Download converted PDF
+        pdf_url = result.get("fileUrl") or result.get("url")
+        if not pdf_url:
+            print("OnlyOffice did not return PDF URL")
+            return False
+        
+        # Download PDF file
+        pdf_response = requests.get(pdf_url, timeout=30)
+        if pdf_response.status_code == 200:
+            with open(output_path, "wb") as f:
+                f.write(pdf_response.content)
+            return True
+        else:
+            print(f"Failed to download PDF from OnlyOffice: {pdf_response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"OnlyOffice request failed: {e}")
+        return False
+    except Exception as e:
+        print(f"OnlyOffice conversion error: {e}")
+        return False
+
+
 def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
     Convert DOCX to PDF with full support for SmartArt, diagrams, and complex graphics.
     Strategy:
     1. docx2pdf (Windows/macOS with Word) - best quality, preserves all elements
-    2. LibreOffice with optimal settings - preserves graphics and formatting
-    3. mammoth (DOCX → HTML → PDF) - fallback for simple documents
+    2. OnlyOffice Document Server API (Linux) - excellent DOCX compatibility
+    3. LibreOffice with optimal settings - preserves graphics and formatting
+    4. mammoth (DOCX → HTML → PDF) - fallback for simple documents
     """
     import platform
     import shutil
@@ -98,6 +187,16 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                             dst.write(src.read())
                         return
         except (RuntimeError, NotImplementedError, Exception):
+            pass  # Fall through to OnlyOffice/LibreOffice
+    
+    # Try OnlyOffice Document Server API on Linux (best DOCX compatibility)
+    if system == "Linux":
+        try:
+            onlyoffice_result = _convert_via_onlyoffice(input_path, output_path)
+            if onlyoffice_result:
+                return
+        except Exception as e:
+            print(f"OnlyOffice conversion failed: {e}")
             pass  # Fall through to LibreOffice
     
     # Use LibreOffice as primary method on Linux - preserves all graphics
