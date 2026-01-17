@@ -76,14 +76,14 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     Convert DOCX to PDF.
     On Windows: uses installed Microsoft Word.
     On macOS: uses Word application.
-    On Linux: requires LibreOffice to be installed.
+    On Linux: tries Pandoc first, then falls back to LibreOffice.
     """
     import platform
     import shutil
     
     system = platform.system()
     
-    # On Linux, skip docx2pdf and go straight to LibreOffice
+    # On Linux, skip docx2pdf and go straight to alternatives
     if system != "Linux":
         try:
             # Try docx2pdf (works on Windows/macOS with Word installed)
@@ -101,14 +101,29 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         except (RuntimeError, NotImplementedError, Exception):
             pass  # Fall through to LibreOffice attempt
     
-    # Try LibreOffice
+    # Try Pandoc first on Linux (often gives better results)
+    if shutil.which("pandoc"):
+        try:
+            subprocess.run(
+                ["pandoc", input_path, "-o", output_path, "--pdf-engine=wkhtmltopdf"],
+                capture_output=True,
+                timeout=120,
+                check=True
+            )
+            if os.path.exists(output_path):
+                return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            pass  # Fall back to LibreOffice
+    
+    # Try LibreOffice as fallback
     out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
     
     # Check if libreoffice is installed
     if not shutil.which("libreoffice") and not shutil.which("soffice"):
         raise UnsupportedFormat(
-            "DOCX conversion requires either Microsoft Word (Windows/macOS) "
-            "or LibreOffice (Linux). Install with: sudo apt install libreoffice"
+            "DOCX conversion requires either Microsoft Word (Windows/macOS), "
+            "Pandoc, or LibreOffice (Linux). Install with: "
+            "sudo apt install pandoc libreoffice"
         )
     
     try:
