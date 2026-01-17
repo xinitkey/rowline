@@ -167,8 +167,8 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
     Convert DOCX to PDF with full support for SmartArt, diagrams, and complex graphics.
     Strategy:
-    1. docx2pdf (Windows/macOS with Word) - best quality, preserves all elements
-    2. OnlyOffice Document Server API (Linux) - excellent DOCX compatibility
+    1. OnlyOffice Document Server API - best DOCX compatibility (all platforms)
+    2. docx2pdf (Windows/macOS with Word) - excellent quality
     3. LibreOffice with optimal settings - preserves graphics and formatting
     4. mammoth (DOCX → HTML → PDF) - fallback for simple documents
     """
@@ -176,6 +176,16 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     import shutil
     
     system = platform.system()
+    
+    # Try OnlyOffice Document Server API first (best DOCX compatibility on all platforms)
+    try:
+        onlyoffice_result = _convert_via_onlyoffice(input_path, output_path)
+        if onlyoffice_result:
+            print("✅ Converted via OnlyOffice Document Server")
+            return
+    except Exception as e:
+        print(f"OnlyOffice conversion failed: {e}")
+        pass  # Fall through to platform-specific methods
     
     # Try docx2pdf on Windows/macOS with Word - best quality
     if system in ("Windows", "Darwin"):
@@ -191,16 +201,6 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                             dst.write(src.read())
                         return
         except (RuntimeError, NotImplementedError, Exception):
-            pass  # Fall through to OnlyOffice/LibreOffice
-    
-    # Try OnlyOffice Document Server API on Linux (best DOCX compatibility)
-    if system == "Linux":
-        try:
-            onlyoffice_result = _convert_via_onlyoffice(input_path, output_path)
-            if onlyoffice_result:
-                return
-        except Exception as e:
-            print(f"OnlyOffice conversion failed: {e}")
             pass  # Fall through to LibreOffice
     
     # Use LibreOffice as primary method on Linux - preserves all graphics
