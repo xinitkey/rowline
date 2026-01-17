@@ -71,7 +71,7 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
     pdfkit.from_file(input_path, output_path)
 
 
-def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = "http://localhost:8080") -> bool:
+def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = None) -> bool:
     """
     Convert document to PDF using OnlyOffice Document Server API.
     Returns True if successful, False otherwise.
@@ -81,6 +81,10 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     import requests
     import json
     import time
+    
+    # Get OnlyOffice URL from environment or use default
+    if onlyoffice_url is None:
+        onlyoffice_url = os.environ.get("ONLYOFFICE_URL", "http://localhost:8080")
     
     # Check if OnlyOffice is available
     try:
