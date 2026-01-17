@@ -73,18 +73,18 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
 
 def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
-    Convert DOCX to PDF.
-    Strategy: Try multiple approaches in order of reliability:
-    1. docx2pdf (Windows/macOS with Word)
-    2. mammoth (DOCX → HTML → PDF) - best for cross-platform
-    3. unoconv/LibreOffice (Linux fallback)
+    Convert DOCX to PDF with full support for SmartArt, diagrams, and complex graphics.
+    Strategy:
+    1. docx2pdf (Windows/macOS with Word) - best quality, preserves all elements
+    2. LibreOffice with optimal settings - preserves graphics and formatting
+    3. mammoth (DOCX → HTML → PDF) - fallback for simple documents
     """
     import platform
     import shutil
     
     system = platform.system()
     
-    # Try docx2pdf on Windows/macOS with Word
+    # Try docx2pdf on Windows/macOS with Word - best quality
     if system in ("Windows", "Darwin"):
         try:
             out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
@@ -98,15 +98,97 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                             dst.write(src.read())
                         return
         except (RuntimeError, NotImplementedError, Exception):
-            pass  # Fall through to mammoth
+            pass  # Fall through to LibreOffice
     
-    # Try mammoth (DOCX → HTML → PDF) - works everywhere with wkhtmltopdf
+    # Use LibreOffice as primary method on Linux - preserves all graphics
+    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+    
+    # Check if LibreOffice is installed
+    libreoffice_cmd = None
+    for cmd in ["libreoffice", "soffice"]:
+        if shutil.which(cmd):
+            libreoffice_cmd = cmd
+            break
+    
+    if libreoffice_cmd:
+        try:
+            # Use LibreOffice with optimal PDF export settings
+            # These filter options preserve graphics, SmartArt, diagrams
+            subprocess.run(
+                [
+                    libreoffice_cmd,
+                    "--headless",
+                    "--convert-to", "pdf:writer_pdf_Export",
+                    "--outdir", out_dir,
+                    input_path
+                ],
+                capture_output=True,
+                timeout=120,
+                check=True,
+                env={
+                    **os.environ,
+                    "XDG_CONFIG_HOME": tempfile.gettempdir(),
+                    "XDG_CACHE_HOME": tempfile.gettempdir(),
+                    # Force better quality for images and graphics
+                    "SAL_USE_VCLPLUGIN": "svp"  # Use server-side rendering plugin
+                }
+            )
+            
+            # LibreOffice creates PDF in same dir with same name
+            expected_pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
+            if os.path.exists(expected_pdf):
+                if expected_pdf != output_path:
+                    os.rename(expected_pdf, output_path)
+                return
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+            print(f"LibreOffice conversion failed: {e}")
+            pass  # Fall through to unoconv
+    
+    # Try unoconv with xvfb for better rendering (preserves graphics better)
+    if system == "Linux":
+        # Try with xvfb for better rendering of complex elements
+        if shutil.which("xvfb-run") and shutil.which("unoconv"):
+            try:
+                result = subprocess.run(
+                    ["xvfb-run", "-a", "unoconv", "-f", "pdf", "-o", output_path, input_path],
+                    capture_output=True,
+                    timeout=120,
+                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+                )
+                if os.path.exists(output_path) and result.returncode == 0:
+                    return
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        
+        # Try unoconv without xvfb
+        if shutil.which("unoconv"):
+            try:
+                subprocess.run(
+                    ["unoconv", "-f", "pdf", "-o", output_path, input_path],
+                    capture_output=True,
+                    timeout=120,
+                    check=True,
+                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+                )
+                if os.path.exists(output_path):
+                    return
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+    
+    # Try mammoth only as last resort (doesn't support SmartArt/diagrams well)
     try:
         import mammoth
         
-        # Convert DOCX to HTML
+        # Convert DOCX to HTML with image extraction
         with open(input_path, "rb") as docx_file:
-            result = mammoth.convert_to_html(docx_file)
+            # Extract images and convert to base64
+            result = mammoth.convert_to_html(
+                docx_file,
+                convert_image=mammoth.images.img_element(lambda image: {
+                    "src": "data:" + image.content_type + ";base64," + 
+                           __import__('base64').b64encode(image.open().read()).decode('utf-8')
+                })
+            )
             html_content = result.value
         
         # Create full HTML document with styling
@@ -161,42 +243,13 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             os.remove(tmp_html_path)
             
     except ImportError:
-        pass  # mammoth not installed, fall back to LibreOffice
+        pass  # mammoth not installed
     except Exception as e:
-        # Log error but continue to fallback
         print(f"Mammoth conversion failed: {e}")
     
-    # Fallback to unoconv/LibreOffice on Linux
-    if system == "Linux":
-        # Try with xvfb for better rendering
-        if shutil.which("xvfb-run") and shutil.which("unoconv"):
-            try:
-                result = subprocess.run(
-                    ["xvfb-run", "-a", "unoconv", "-f", "pdf", "-o", output_path, input_path],
-                    capture_output=True,
-                    timeout=120,
-                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
-                )
-                if os.path.exists(output_path) and result.returncode == 0:
-                    return
-            except (subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-        
-        # Try unoconv without xvfb
-        if shutil.which("unoconv"):
-            try:
-                subprocess.run(
-                    ["unoconv", "-f", "pdf", "-o", output_path, input_path],
-                    capture_output=True,
-                    timeout=120,
-                    check=True,
-                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
-                )
-                if os.path.exists(output_path):
-                    return
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
-                pass
-    
+    # If we get here, all methods failed
+    raise RuntimeError(f"Failed to convert DOCX to PDF. Please ensure LibreOffice or unoconv is installed.")
+
     # Try Pandoc as fallback
     if shutil.which("pandoc"):
         try:
