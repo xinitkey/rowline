@@ -74,19 +74,19 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
 def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
     Convert DOCX to PDF.
-    On Windows: uses installed Microsoft Word.
-    On macOS: uses Word application.
-    On Linux: uses unoconv with xvfb for better rendering of complex documents.
+    Strategy: Try multiple approaches in order of reliability:
+    1. docx2pdf (Windows/macOS with Word)
+    2. mammoth (DOCX → HTML → PDF) - best for cross-platform
+    3. unoconv/LibreOffice (Linux fallback)
     """
     import platform
     import shutil
     
     system = platform.system()
     
-    # On Linux, skip docx2pdf and go straight to alternatives
-    if system != "Linux":
+    # Try docx2pdf on Windows/macOS with Word
+    if system in ("Windows", "Darwin"):
         try:
-            # Try docx2pdf (works on Windows/macOS with Word installed)
             out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
             with tempfile.TemporaryDirectory() as tmp:
                 from docx2pdf import convert as docx2pdf_convert
@@ -97,37 +97,105 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                         with open(src_pdf, "rb") as src, open(output_path, "wb") as dst:
                             dst.write(src.read())
                         return
-            raise RuntimeError("Failed to convert DOCX to PDF using docx2pdf")
         except (RuntimeError, NotImplementedError, Exception):
-            pass  # Fall through to alternatives
+            pass  # Fall through to mammoth
     
-    # On Linux, try with xvfb for better rendering
-    if system == "Linux" and shutil.which("xvfb-run"):
+    # Try mammoth (DOCX → HTML → PDF) - works everywhere with wkhtmltopdf
+    try:
+        import mammoth
+        
+        # Convert DOCX to HTML
+        with open(input_path, "rb") as docx_file:
+            result = mammoth.convert_to_html(docx_file)
+            html_content = result.value
+        
+        # Create full HTML document with styling
+        full_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body {{
+                    font-family: 'Times New Roman', Times, serif;
+                    font-size: 12pt;
+                    line-height: 1.5;
+                    margin: 2cm;
+                    color: #000;
+                }}
+                table {{
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 1em 0;
+                }}
+                table, th, td {{
+                    border: 1px solid #000;
+                    padding: 8px;
+                }}
+                img {{
+                    max-width: 100%;
+                    height: auto;
+                }}
+                h1, h2, h3, h4, h5, h6 {{
+                    margin-top: 1em;
+                    margin-bottom: 0.5em;
+                }}
+            </style>
+        </head>
+        <body>
+            {html_content}
+        </body>
+        </html>
+        """
+        
+        # Convert HTML to PDF using wkhtmltopdf
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as tmp_html:
+            tmp_html.write(full_html)
+            tmp_html_path = tmp_html.name
+        
         try:
-            # Use xvfb-run with unoconv for best results
-            result = subprocess.run(
-                ["xvfb-run", "-a", "unoconv", "-f", "pdf", "-o", output_path, input_path],
-                capture_output=True,
-                timeout=120,
-                env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
-            )
-            if os.path.exists(output_path) and result.returncode == 0:
-                return
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            pass  # Fall back to next option
-    
-    # Try unoconv without xvfb
-    if shutil.which("unoconv"):
-        try:
-            subprocess.run(
-                ["unoconv", "-f", "pdf", "-o", output_path, input_path],
-                capture_output=True,
-                timeout=120,
-                check=True,
-                env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
-            )
+            pdfkit.from_file(tmp_html_path, output_path)
             if os.path.exists(output_path):
                 return
+        finally:
+            os.remove(tmp_html_path)
+            
+    except ImportError:
+        pass  # mammoth not installed, fall back to LibreOffice
+    except Exception as e:
+        # Log error but continue to fallback
+        print(f"Mammoth conversion failed: {e}")
+    
+    # Fallback to unoconv/LibreOffice on Linux
+    if system == "Linux":
+        # Try with xvfb for better rendering
+        if shutil.which("xvfb-run") and shutil.which("unoconv"):
+            try:
+                result = subprocess.run(
+                    ["xvfb-run", "-a", "unoconv", "-f", "pdf", "-o", output_path, input_path],
+                    capture_output=True,
+                    timeout=120,
+                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+                )
+                if os.path.exists(output_path) and result.returncode == 0:
+                    return
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        
+        # Try unoconv without xvfb
+        if shutil.which("unoconv"):
+            try:
+                subprocess.run(
+                    ["unoconv", "-f", "pdf", "-o", output_path, input_path],
+                    capture_output=True,
+                    timeout=120,
+                    check=True,
+                    env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+                )
+                if os.path.exists(output_path):
+                    return
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+                pass
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             pass  # Fall back to next option
     
