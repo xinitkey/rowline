@@ -119,12 +119,16 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         if system == "Linux" and shutil.which("xvfb-run"):
             try:
                 # Use xvfb with LibreOffice for better rendering of text in shapes
+                # Add --norestore to avoid dialog boxes that may interfere
                 subprocess.run(
                     [
                         "xvfb-run", "-a", "--server-args=-screen 0 1920x1080x24",
                         libreoffice_cmd,
                         "--headless",
-                        "--convert-to", f"pdf:writer_pdf_Export:{{\"FilterData\":{{\"UseTaggedPDF\":true,\"Quality\":100,\"ReduceImageResolution\":false,\"MaxImageResolution\":600,\"EmbedStandardFonts\":true}}}}",
+                        "--norestore",
+                        "--nologo",
+                        "--nofirststartwizard",
+                        "--convert-to", "pdf:writer_pdf_Export",
                         "--outdir", out_dir,
                         input_path
                     ],
@@ -136,7 +140,9 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                         "XDG_CONFIG_HOME": tempfile.gettempdir(),
                         "XDG_CACHE_HOME": tempfile.gettempdir(),
                         "DISPLAY": ":99",
-                        "HOME": tempfile.gettempdir()
+                        "HOME": tempfile.gettempdir(),
+                        "LANG": "en_US.UTF-8",
+                        "LC_ALL": "en_US.UTF-8"
                     }
                 )
                 
@@ -152,13 +158,15 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         
         # Try regular LibreOffice without xvfb
         try:
-            # Use LibreOffice with optimal PDF export settings
-            # These filter options preserve graphics, SmartArt, diagrams
+            # Use LibreOffice with simple PDF export (complex filters may cause issues)
             subprocess.run(
                 [
                     libreoffice_cmd,
                     "--headless",
-                    "--convert-to", f"pdf:writer_pdf_Export:{{\"FilterData\":{{\"UseTaggedPDF\":true,\"Quality\":100,\"ReduceImageResolution\":false,\"MaxImageResolution\":600,\"EmbedStandardFonts\":true}}}}",
+                    "--norestore",
+                    "--nologo", 
+                    "--nofirststartwizard",
+                    "--convert-to", "pdf:writer_pdf_Export",
                     "--outdir", out_dir,
                     input_path
                 ],
@@ -170,6 +178,8 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                     "XDG_CONFIG_HOME": tempfile.gettempdir(),
                     "XDG_CACHE_HOME": tempfile.gettempdir(),
                     "HOME": tempfile.gettempdir(),
+                    "LANG": "en_US.UTF-8",
+                    "LC_ALL": "en_US.UTF-8",
                     # Force better quality for images and graphics
                     "SAL_USE_VCLPLUGIN": "svp"  # Use server-side rendering plugin
                 }
