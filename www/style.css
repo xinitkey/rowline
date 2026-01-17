@@ -5,14 +5,27 @@
 header {
   display: flex;                  /* логотип и nav в одну строку */
   align-items: center;            /* по вертикали по центру */
-  justify-content: space-between; /* логотип слева, ссылки справа */
-  padding: 0 20px;                /* по желанию: отступы по бокам */
+  justify-content: center;        /* центрируем всё по умолчанию */
+  padding: 1rem 20px;           /* увеличенный вертикальный padding */
   background-color: #fff;
+  position: relative;
+}
+
+header > div {
+  position: absolute;
+  left: 20px;
 }
 
 header nav {
   display: flex;
   gap: 16px;                      /* расстояние между ссылками */
+  flex: 1;
+  justify-content: center;        /* центрируем навигацию */
+}
+
+.theme-toggle {
+  position: absolute;
+  right: 20px;
 }
 
 header nav a {
@@ -25,7 +38,7 @@ body {
     font-optical-sizing: auto;
     font-weight: <weight>;
     font-style: normal;
-    
+
     background-color: #F7F5F5;
     color: #333;
     margin: 0;
@@ -395,3 +408,16 @@ footer {
 [data-theme="dark"] .terms-text {
     color: #787c99;
 }
+
+/* About Page Styles */
+.about-container { max-width: 900px; margin: 0 auto; }
+.about-logo { max-width: 200px; margin: 2rem 0; }
+.content-card { background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.feature-card { background: white; padding: 1.5rem; border-radius: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+.feature-card:hover { transform: translateY(-5px); }
+.feature-card h3 { color: #6a78f3; margin-top: 0; }
+.contact-section { text-align: center; }
+
+[data-theme='dark'] .content-card, [data-theme='dark'] .feature-card { background: #1f2335; box-shadow: none; }
+

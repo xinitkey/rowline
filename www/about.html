@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About Us - Rowline.me</title>
+    <script>
+        // Prevent flash of wrong theme on page load
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="icon" type="image/png" href="img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="img/favicon.svg" />
+    <link rel="shortcut icon" href="img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png" />
+    <link rel="manifest" href="img/site.webmanifest" />
+</head>
+
+<body>
+    <div id="header-placeholder"></div>
+
+    <main>
+        <article class="about-container">
+            <h1>About Rowline</h1>
+            <p class="subtitle">Making data conversion simple and accessible.</p>
+
+            <div class="content-card">
+                <h2>Our Mission</h2>
+                <p>
+                    At Rowline, we believe that working with data should be effortless. 
+                    Our mission is to provide powerful, user-friendly tools that bridge the gap between complex file formats. 
+                    We started with a simple XLSX to XML converter and are constantly expanding to meet the needs of developers and businesses worldwide.
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3>⚡ Fast & Secure</h3>
+                    <p>Processing happens instantly. We prioritize your data privacy and security above all else.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🛠️ Developer Friendly</h3>
+                    <p>Clean XML outputs that integrate seamlessly into your existing workflows and applications.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌍 Open & Accessible</h3>
+                    <p>Free to use tools accessible from any device, anywhere in the world.</p>
+                </div>
+            </div>
+
+            <div class="content-card contact-section">
+                <h2>Get in Touch</h2>
+                <p>Have questions, suggestions, or just want to say hi?</p>
+                <a href="mailto:support@rowline.me" class="btn-upload" style="text-decoration: none; display: inline-flex; width: auto; margin-top: 1rem;">
+                    Contact Support
+                </a>
+            </div>
+        </article>
+    </main>
+    
+    <div id="footer-placeholder"></div>
+    <script src="components.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
