@@ -7,7 +7,7 @@ header {
   align-items: center;            /* по вертикали по центру */
   justify-content: center;        /* центрируем всё по умолчанию */
   padding: 1rem 20px;             /* увеличенный вертикальный padding */
-  background-color: #fff;
+  background-color: #cacaca;
   position: relative;
 }
 
@@ -55,6 +55,7 @@ main {
     justify-content: center;
     align-items: center;
     padding: 2rem;
+    background-color: #cfcfcf;
 }
 
 article {
@@ -110,7 +111,7 @@ h1 {
 }
 
 .btn-upload:hover {
-    background: #56d0d6;
+    background: #57d0d6;
 }
 
 .btn-upload i {
@@ -148,19 +149,19 @@ h1 {
 }
 
 .description-container {
-    background-color: #E3E2E2; /* Light gray/lavender bg */
-    border: 0px solid #9ca3cd;
-    border-radius: 50px;
-    padding: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 0.5rem;
+        background-color: #E3E2E2;
+        border: 0px solid #9ca3cd;
+        border-radius: 50px;
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        gap: 1rem; /* расстояние между всеми дочерними блоками */
 }
-
 a {
-    color: #6a78f3;
+    color: #0d7377;
     text-decoration: none;
 }
 
@@ -173,7 +174,7 @@ footer {
     padding: 2rem;
     font-size:0.8rem;
     color: #fff;
-    background-color: #179593;
+    background-color: #0d7377;
  
 }
 
@@ -249,11 +250,11 @@ footer a:hover {
 }
  /* Drag & Drop highlight */
 .upload-container.highlight {
-    border-color: #6a78f3;
+    border-color: #57d0d6;
     background-color: #e0e4ff;
 }
 
-.active { color: #6a78f3; font-weight: 700; }
+.active { color: #0d7377; font-weight: 700; }
 
 .template-select {
     margin-top: 1rem;
@@ -306,7 +307,7 @@ footer a:hover {
 }
 
 .theme-toggle:hover {
-    color: #6a78f3;
+    color: #57d0d6;
 }
 
 .theme-toggle svg {
@@ -364,11 +365,11 @@ footer a:hover {
 
 [data-theme="dark"] .upload-container {
     background-color: #24283b;
-    border-color: #565f89;
+    border-color: #57d0d6;
 }
 
 [data-theme="dark"] .upload-container.highlight {
-    border-color: #7aa2f7;
+    border-color: #57d0d6;
     background-color: #2a2e4a;
 }
 
@@ -391,19 +392,19 @@ footer a:hover {
 }
 
 [data-theme="dark"] a {
-    color: #7aa2f7;
+    color: #0d7377;
 }
 
 [data-theme="dark"] nav a {
-    color: #a9b1d6;
+    color: #0d7377;
 }
 
 [data-theme="dark"] nav a.active {
-    color: #7aa2f7;
+    color: #0d7377;
 }
 
 [data-theme="dark"] nav a:hover {
-    color: #7aa2f7;
+    color: #0d7377;
 }
 
 [data-theme="dark"] footer {
@@ -415,7 +416,7 @@ footer a:hover {
 }
 
 [data-theme="dark"] .theme-toggle:hover {
-    color: #7aa2f7;
+    color: #0d7377;
 }
 
 [data-theme="dark"] .template-select {
@@ -436,7 +437,7 @@ footer a:hover {
 .about-container { max-width: 900px; margin: 0 auto; }
 .about-logo { max-width: 200px; margin: 2rem 0; }
 .content-card { background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 0rem; }
 .feature-card { background: white; padding: 1.5rem; border-radius: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
 .feature-card:hover { transform: translateY(-5px); }
 .feature-card h3 { color: #6a78f3; margin-top: 0; }

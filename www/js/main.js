@@ -172,72 +172,104 @@ class XlsxConverter {
             const style = document.createElement('style');
             style.id = 'converter-styles';
             style.textContent = `
-                .progress-container {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    padding: 2rem;
-                }
-                .spinner {
-                    width: 40px;
-                    height: 40px;
-                    border: 4px solid #f3f3f3;
-                    border-top: 4px solid #6a78f3;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                    margin-bottom: 1rem;
-                }
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                #resultSection {
-                    background: #e8f5e9;
-                    padding: 1.5rem;
-                    border-radius: 8px;
-                    margin-top: 1rem;
-                }
-                #resultSection a {
-                    display: inline-block;
-                    background: #4caf50;
-                    color: white;
-                    padding: 12px 24px;
-                    text-decoration: none;
-                    border-radius: 4px;
-                    margin-top: 0.5rem;
-                }
-                #resultSection a:hover {
-                    background: #45a049;
-                }
-                #errorSection {
-                    background: #ffebee;
-                    padding: 1.5rem;
-                    border-radius: 8px;
-                    margin-top: 1rem;
-                }
-                .file-selected {
-                    margin-top: 1rem;
-                    padding: 0.5rem 1rem;
-                    background: #e3f2fd;
-                    border-radius: 4px;
-                    display: inline-block;
-                }
-                .template-select {
-                    margin-top: 1rem;
-                    padding: 0.5rem;
-                    font-size: 1rem;
-                    border: 2px solid #9ca3cd;
-                    border-radius: 4px;
-                    width: 100%;
-                    max-width: 400px; /* Limit width on larger screens */
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                    overflow: hidden;
-                }
-                .convert-btn:disabled {
-                    background: #ccc;
-                    cursor: not-allowed;
-                }
+/* Контейнер прогресса в стиле description-container */
+.progress-container {
+  background-color: #E3E2E2;
+  border: 0 solid #9ca3cd;
+  border-radius: 50px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;              /* расстояние между элементами внутри */
+}
+
+/* Спиннер */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #6a78f3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Анимация спиннера */
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Блок результата */
+#resultSection {
+  background-color: #CCE3D6;
+  padding: 1.5rem;
+  border-radius: 50px;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Кнопка в блоке результата */
+#resultSection a {
+    background-color: #43DDCB;
+    color: black;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    }
+
+#resultSection a:hover {
+  background-color: #57d0d6;
+}
+
+/* Блок ошибки */
+#errorSection {
+  background-color: rgb(231, 191, 197);
+  padding: 1.5rem;
+  border-radius: 50px;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Инфа о выбранном файле */
+.file-selected {
+  margin-top: 0;
+  padding: 0.5rem 1rem;
+  background-color: #e3f2fd;
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+
+/* Селект шаблона */
+.template-select {
+  margin-top: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 2px solid #9ca3cd;
+  border-radius: 999px;
+  width: 100%;
+  max-width: 400px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+/* Кнопка конвертации в выключенном состоянии */
+.convert-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
             `;
             document.head.appendChild(style);
         }
@@ -643,7 +675,7 @@ class XlsxConverter {
         if (this.downloadLink) {
             this.downloadLink.href = downloadUrl;
             this.downloadLink.download = filename;
-            this.downloadLink.textContent = `⬇️ Download ${filename}`;
+            this.downloadLink.textContent = `Download ${filename}`;
         }
     }
 
