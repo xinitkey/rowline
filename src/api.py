@@ -299,7 +299,7 @@ async def convert_to_pdf(
     """
     Convert any supported file to PDF.
     
-    Supported formats: PDF, HTML, XML, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD 
+    Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
     """
     import uuid
     
