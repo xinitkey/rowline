@@ -111,6 +111,10 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             break
     
     if libreoffice_cmd:
+        # Create a filter data file for better PDF export quality
+        # This preserves text positioning in shapes and SmartArt
+        filter_data = "UseTaggedPDF=true:ExportFormFields=true:FormsType=0:ExportBookmarks=false"
+        
         # Try with xvfb first for better text positioning in shapes
         if system == "Linux" and shutil.which("xvfb-run"):
             try:
@@ -120,7 +124,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                         "xvfb-run", "-a", "--server-args=-screen 0 1920x1080x24",
                         libreoffice_cmd,
                         "--headless",
-                        "--convert-to", "pdf:writer_pdf_Export",
+                        "--convert-to", f"pdf:writer_pdf_Export:{{\"FilterData\":{{\"UseTaggedPDF\":true,\"Quality\":100,\"ReduceImageResolution\":false,\"MaxImageResolution\":600,\"EmbedStandardFonts\":true}}}}",
                         "--outdir", out_dir,
                         input_path
                     ],
@@ -131,7 +135,8 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                         **os.environ,
                         "XDG_CONFIG_HOME": tempfile.gettempdir(),
                         "XDG_CACHE_HOME": tempfile.gettempdir(),
-                        "DISPLAY": ":99"
+                        "DISPLAY": ":99",
+                        "HOME": tempfile.gettempdir()
                     }
                 )
                 
@@ -153,7 +158,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                 [
                     libreoffice_cmd,
                     "--headless",
-                    "--convert-to", "pdf:writer_pdf_Export",
+                    "--convert-to", f"pdf:writer_pdf_Export:{{\"FilterData\":{{\"UseTaggedPDF\":true,\"Quality\":100,\"ReduceImageResolution\":false,\"MaxImageResolution\":600,\"EmbedStandardFonts\":true}}}}",
                     "--outdir", out_dir,
                     input_path
                 ],
@@ -164,6 +169,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                     **os.environ,
                     "XDG_CONFIG_HOME": tempfile.gettempdir(),
                     "XDG_CACHE_HOME": tempfile.gettempdir(),
+                    "HOME": tempfile.gettempdir(),
                     # Force better quality for images and graphics
                     "SAL_USE_VCLPLUGIN": "svp"  # Use server-side rendering plugin
                 }
