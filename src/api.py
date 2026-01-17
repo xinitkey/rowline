@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from src import XlsxToXmlConverter, XmlFiller
+from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 
 
 # Create FastAPI application
@@ -290,6 +290,57 @@ async def delete_template(filename: str):
     
     template_path.unlink()
     return {"message": f"Template {filename} deleted"}
+
+
+@app.post("/api/convert-to-pdf")
+async def convert_to_pdf(
+    file: UploadFile = File(..., description="File to convert to PDF")
+):
+    """
+    Convert any supported file to PDF.
+    
+    Supported formats: PDF, HTML, XML, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD 
+    """
+    import uuid
+    
+    # Create unique temp folder for this request
+    request_id = str(uuid.uuid4())
+    work_dir = TEMP_DIR / request_id
+    work_dir.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Save uploaded file
+        input_path = work_dir / file.filename
+        content = await file.read()
+        await asyncio.to_thread(input_path.write_bytes, content)
+        
+        # Define output path
+        output_path = work_dir / (input_path.stem + ".pdf")
+        
+        # Convert to PDF in separate thread
+        try:
+            await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+        except UnsupportedFormat as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        
+        if not output_path.exists():
+            raise HTTPException(status_code=500, detail="Failed to create PDF file")
+        
+        return FileResponse(
+            path=output_path,
+            filename=output_path.name,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{output_path.name}"'
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Mount static files (frontend)

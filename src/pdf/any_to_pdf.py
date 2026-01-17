@@ -1,0 +1,174 @@
+import os
+import tempfile
+import mimetypes
+import subprocess
+
+import pdfkit          # html -> pdf [web:1]
+from docx2pdf import convert as docx2pdf_convert  # docx -> pdf [web:9]
+import img2pdf         # images -> pdf [web:10]
+from PIL import Image  # img2pdf зависит от Pillow [web:10]
+
+
+class UnsupportedFormat(Exception):
+    pass
+
+
+def any_to_pdf(input_path: str, output_path: str | None = None) -> str:
+    """
+    Конвертация файла в PDF по расширению.
+    Поддерживает: .pdf, .html/.htm, .docx, изображения (.jpg/.jpeg/.png/.bmp/.tiff),
+    текст (.txt, .py, .log и пр. как plain text).
+    """
+    if output_path is None:
+        base, _ = os.path.splitext(input_path)
+        output_path = base + ".pdf"
+
+    ext = os.path.splitext(input_path)[1].lower()
+
+    if ext == ".pdf":
+        # уже PDF – просто копируем
+        if input_path != output_path:
+            with open(input_path, "rb") as src, open(output_path, "wb") as dst:
+                dst.write(src.read())
+        return output_path
+
+    if ext in {".html", ".htm"}:
+        html_to_pdf(input_path, output_path)
+        return output_path
+
+    if ext == ".xml":
+        xml_to_pdf(input_path, output_path)
+        return output_path
+
+    if ext == ".docx":
+        docx_to_pdf(input_path, output_path)
+        return output_path
+
+    if ext in {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}:
+        image_to_pdf(input_path, output_path)
+        return output_path
+
+    # простые текстовые файлы: читаем и рендерим в PDF через wkhtmltopdf
+    if ext in {".txt", ".py", ".log", ".md"}:
+        text_to_pdf(input_path, output_path)
+        return output_path
+
+    # fallback по MIME-типу (можно расширять)
+    mime, _ = mimetypes.guess_type(input_path)
+    if mime and mime.startswith("image/"):
+        image_to_pdf(input_path, output_path)
+        return output_path
+
+    raise UnsupportedFormat(f"Формат {ext} не поддерживается")
+
+
+def html_to_pdf(input_path: str, output_path: str) -> None:
+    # pdfkit использует wkhtmltopdf под капотом [web:1]
+    pdfkit.from_file(input_path, output_path)
+
+
+def docx_to_pdf(input_path: str, output_path: str) -> None:
+    """
+    docx2pdf на Windows работает через установленный Word,
+    на macOS через приложение «Word», на Linux часто не работает [web:9].
+    """
+    # docx2pdf умеет принимать output-путь только как директорию.
+    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+    with tempfile.TemporaryDirectory() as tmp:
+        # конвертим во временную папку
+        docx2pdf_convert(input_path, tmp)
+        # ищем получившийся pdf
+        for f in os.listdir(tmp):
+            if f.lower().endswith(".pdf"):
+                src_pdf = os.path.join(tmp, f)
+                with open(src_pdf, "rb") as src, open(output_path, "wb") as dst:
+                    dst.write(src.read())
+                return
+    raise RuntimeError("Не удалось конвертировать DOCX в PDF")
+
+
+def image_to_pdf(input_path: str, output_path: str) -> None:
+    # img2pdf.convert возвращает bytes PDF [web:10]
+    with open(output_path, "wb") as f_out:
+        f_out.write(img2pdf.convert(input_path))
+
+
+def xml_to_pdf(input_path: str, output_path: str) -> None:
+    """
+    Convert XML to PDF with formatting.
+    """
+    import html as html_module
+    
+    with open(input_path, "r", encoding="utf-8", errors="ignore") as f:
+        xml_content = f.read()
+    
+    # Escape HTML entities and wrap in pre tag for formatting
+    escaped_xml = html_module.escape(xml_content)
+    
+    html = f"""
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {{
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 10pt;
+            line-height: 1.4;
+            padding: 20px;
+            background: #f8f9fa;
+          }}
+          pre {{
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: white;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+          }}
+        </style>
+      </head>
+      <body><pre>{escaped_xml}</pre></body>
+    </html>
+    """
+    
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as tmp_html:
+        tmp_html.write(html)
+        tmp_html_path = tmp_html.name
+    
+    try:
+        pdfkit.from_file(tmp_html_path, output_path)
+    finally:
+        os.remove(tmp_html_path)
+
+
+def text_to_pdf(input_path: str, output_path: str) -> None:
+    """
+    Примитив: оборачиваем текст в простой HTML и гоняем через wkhtmltopdf.
+    Можно заменить на fpdf/reportlab, если не хочешь зависеть от wkhtmltopdf[web:3][web:5].
+    """
+    with open(input_path, "r", encoding="utf-8", errors="ignore") as f:
+        text = f.read()
+
+    html = f"""
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {{
+            font-family: monospace;
+            white-space: pre-wrap;
+          }}
+        </style>
+      </head>
+      <body>{text}</body>
+    </html>
+    """
+
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as tmp_html:
+        tmp_html.write(html)
+        tmp_html_path = tmp_html.name
+
+    try:
+        pdfkit.from_file(tmp_html_path, output_path)
+    finally:
+        os.remove(tmp_html_path)

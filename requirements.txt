@@ -4,3 +4,12 @@ fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 python-multipart>=0.0.6
 aiofiles>=23.0.0
+pdfkit>=1.0.0
+python-magic-bin>=0.4.14
+docx2pdf>=0.1.8
+img2pdf>=0.6.0
+pillow>=10.0.0
+
+# System dependencies for Linux/macOS:
+# sudo apt install wkhtmltopdf libmagic1  (for Ubuntu/Debian)
+# brew install wkhtmltopdf libmagic  (for macOS)
