@@ -69,22 +69,43 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
 
 def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
-    docx2pdf на Windows работает через установленный Word,
-    на macOS через приложение «Word», на Linux часто не работает [web:9].
+    Convert DOCX to PDF.
+    On Windows: uses installed Microsoft Word.
+    On macOS: uses Word application.
+    On Linux: requires LibreOffice to be installed.
     """
-    # docx2pdf умеет принимать output-путь только как директорию.
-    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
-    with tempfile.TemporaryDirectory() as tmp:
-        # конвертим во временную папку
-        docx2pdf_convert(input_path, tmp)
-        # ищем получившийся pdf
-        for f in os.listdir(tmp):
-            if f.lower().endswith(".pdf"):
-                src_pdf = os.path.join(tmp, f)
-                with open(src_pdf, "rb") as src, open(output_path, "wb") as dst:
-                    dst.write(src.read())
-                return
-    raise RuntimeError("Не удалось конвертировать DOCX в PDF")
+    try:
+        # Try docx2pdf (works on Windows/macOS with Word installed)
+        out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+        with tempfile.TemporaryDirectory() as tmp:
+            from docx2pdf import convert as docx2pdf_convert
+            docx2pdf_convert(input_path, tmp)
+            for f in os.listdir(tmp):
+                if f.lower().endswith(".pdf"):
+                    src_pdf = os.path.join(tmp, f)
+                    with open(src_pdf, "rb") as src, open(output_path, "wb") as dst:
+                        dst.write(src.read())
+                    return
+        raise RuntimeError("Failed to convert DOCX to PDF using docx2pdf")
+    except (RuntimeError, NotImplementedError) as e:
+        # Try LibreOffice on Linux
+        try:
+            subprocess.run(
+                ["libreoffice", "--headless", "--convert-to", "pdf", 
+                 "--outdir", os.path.dirname(output_path) or ".", input_path],
+                check=True,
+                capture_output=True
+            )
+            # LibreOffice creates output with same name as input
+            lo_output = os.path.splitext(input_path)[0] + ".pdf"
+            if os.path.exists(lo_output) and lo_output != output_path:
+                os.rename(lo_output, output_path)
+            return
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            raise UnsupportedFormat(
+                "DOCX conversion requires either Microsoft Word (Windows/macOS) "
+                "or LibreOffice (Linux). Install libreoffice: sudo apt install libreoffice"
+            )
 
 
 def image_to_pdf(input_path: str, output_path: str) -> None:
