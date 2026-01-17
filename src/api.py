@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-FastAPI модуль для XLSX to XML Converter.
-Предоставляет REST API для конвертации файлов.
+FastAPI module for XLSX to XML Converter.
+Provides REST API for file conversion.
 """
 
 import io
@@ -21,14 +21,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from src import XlsxToXmlConverter, XmlFiller
 
 
-# Создаём FastAPI приложение
+# Create FastAPI application
 app = FastAPI(
     title="XLSX to XML Converter API",
-    description="API для конвертации XLSX файлов в XML формат",
+    description="API for converting XLSX files to XML format",
     version="1.0.0"
 )
 
-# CORS настройки для разработки
+# CORS settings for development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,31 +37,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Путь к статическим файлам (фронтенд)
+# Path to static files (frontend)
 STATIC_DIR = Path(__file__).parent.parent / "www"
 TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-# Используем папку внутри проекта вместо системного /tmp
+# Use project folder instead of system /tmp
 TEMP_DIR = Path(__file__).parent.parent / "temp"
 
-# Пул потоков для тяжёлых операций
-# На Windows используем большой пул потоков вместо многопроцессности
+# Thread pool for heavy operations
+# On Windows use large thread pool instead of multiprocessing
 import os
-MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Минимум 16 потоков
+MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Minimum 16 threads
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
-# Создаём временную директорию если не существует
+# Create temp directory if it doesn't exist
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/api/health")
 async def health_check():
-    """Проверка работоспособности API."""
+    """Check API health."""
     return {"status": "ok", "message": "XLSX to XML Converter API is running"}
 
 
 @app.get("/api/templates")
 async def list_templates():
-    """Получить список доступных XML шаблонов."""
+    """Get list of available XML templates."""
     templates = []
     
     if TEMPLATES_DIR.exists():
@@ -87,17 +87,17 @@ def _do_conversion(
     start_row: int
 ) -> list[Path]:
     """
-    Синхронная функция конвертации (выполняется в отдельном потоке).
+    Synchronous conversion function (executed in a separate thread).
     """
     result_files = []
     
     if mode == "fill":
         if not template:
-            raise ValueError("Для режима 'fill' необходимо указать шаблон")
+            raise ValueError("Template is required for 'fill' mode")
         
         template_path = TEMPLATES_DIR / template
         if not template_path.exists():
-            raise FileNotFoundError(f"Шаблон не найден: {template}")
+            raise FileNotFoundError(f"Template not found: {template}")
         
         filler = XmlFiller(template_path)
         
@@ -143,55 +143,55 @@ def _do_conversion(
                 separate_files=True
             )
     else:
-        raise ValueError(f"Неизвестный режим: {mode}. Используйте 'fill' или 'convert'")
+        raise ValueError(f"Unknown mode: {mode}. Use 'fill' or 'convert'")
     
     return [Path(f) for f in result_files if Path(f).exists()]
 
 
 @app.post("/api/convert")
 async def convert_xlsx_to_xml(
-    file: UploadFile = File(..., description="XLSX файл для конвертации"),
-    mode: str = Form(default="fill", description="Режим: 'fill' или 'convert'"),
-    template: Optional[str] = Form(default=None, description="Имя файла шаблона"),
-    sheet_name: Optional[str] = Form(default=None, description="Имя листа (опционально)"),
-    code_col: int = Form(default=6, description="Столбец с кодом (1-based)"),
-    data_start_col: int = Form(default=7, description="Начальный столбец данных"),
-    data_end_col: int = Form(default=12, description="Конечный столбец данных"),
-    start_row: int = Form(default=9, description="Начальная строка данных")
+    file: UploadFile = File(..., description="XLSX file for conversion"),
+    mode: str = Form(default="fill", description="Mode: 'fill' or 'convert'"),
+    template: Optional[str] = Form(default=None, description="Template filename"),
+    sheet_name: Optional[str] = Form(default=None, description="Sheet name (optional)"),
+    code_col: int = Form(default=6, description="Code column (1-based)"),
+    data_start_col: int = Form(default=7, description="Data start column"),
+    data_end_col: int = Form(default=12, description="Data end column"),
+    start_row: int = Form(default=9, description="Data start row")
 ):
     """
-    Конвертировать XLSX файл в XML (асинхронно).
+    Convert XLSX file to XML (asynchronously).
     
-    - **file**: Загружаемый XLSX файл
-    - **mode**: Режим работы ('fill' - заполнение шаблона, 'convert' - создание нового XML)
-    - **template**: Имя шаблона из папки templates (для режима fill)
-    - **sheet_name**: Конкретный лист для обработки (опционально, по умолчанию - все листы)
+    - **file**: Uploaded XLSX file
+    - **mode**: Operation mode ('fill' - fill template, 'convert' - create new XML)
+    - **template**: Template name from templates folder (for fill mode)
+    - **sheet_name**: Specific sheet to process (optional, default - all sheets)
     """
-    # Проверка формата файла
+    # Check file format
     if not file.filename.lower().endswith('.xlsx'):
         raise HTTPException(
             status_code=400, 
-            detail="Неверный формат файла. Ожидается .xlsx"
+            detail="Invalid file format. Expected .xlsx"
         )
     
-    # Создаём уникальную временную папку для этого запроса
+    # Create unique temp folder for this request
     import uuid
     request_id = str(uuid.uuid4())
     work_dir = TEMP_DIR / request_id
     work_dir.mkdir(parents=True, exist_ok=True)
     
     try:
-        # Сохраняем загруженный файл
+        # Save uploaded file
         input_path = work_dir / file.filename
         content = await file.read()
         
-        # Асинхронная запись файла
+        # Async file write
         await asyncio.to_thread(input_path.write_bytes, content)
         
         output_dir = work_dir / "output"
         output_dir.mkdir(exist_ok=True)
         
-        # Выполняем конвертацию в отдельном потоке (не блокируем event loop)
+        # Perform conversion in separate thread (don't block event loop)
         try:
             result_files = await asyncio.to_thread(
                 _do_conversion,
@@ -213,10 +213,10 @@ async def convert_xlsx_to_xml(
         if not result_files:
             raise HTTPException(
                 status_code=500,
-                detail="Не удалось создать выходные файлы"
+                detail="Failed to create output files"
             )
         
-        # Если один файл - возвращаем его напрямую
+        # If one file - return it directly
         if len(result_files) == 1:
             return FileResponse(
                 path=result_files[0],
@@ -227,7 +227,7 @@ async def convert_xlsx_to_xml(
                 }
             )
         
-        # Если несколько файлов - создаём ZIP архив (тоже в отдельном потоке)
+        # If multiple files - create ZIP archive (also in separate thread)
         zip_path = work_dir / f"{input_path.stem}_converted.zip"
         
         def create_zip():
@@ -251,20 +251,20 @@ async def convert_xlsx_to_xml(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        # Очистка временных файлов откладывается для FileResponse
-        # В реальном приложении нужно добавить background task для очистки
+        # Cleanup of temp files is deferred for FileResponse
+        # In real app, add background task for cleanup
         pass
 
 
 @app.post("/api/upload-template")
 async def upload_template(file: UploadFile = File(...)):
     """
-    Загрузить новый XML шаблон.
+    Upload new XML template.
     """
     if not file.filename.lower().endswith('.xml'):
         raise HTTPException(
             status_code=400,
-            detail="Неверный формат файла. Ожидается .xml"
+            detail="Invalid file format. Expected .xml"
         )
     
     TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
@@ -275,30 +275,30 @@ async def upload_template(file: UploadFile = File(...)):
         f.write(content)
     
     return {
-        "message": "Шаблон успешно загружен",
+        "message": "Template uploaded successfully",
         "filename": file.filename
     }
 
 
 @app.delete("/api/templates/{filename}")
 async def delete_template(filename: str):
-    """Удалить XML шаблон."""
+    """Delete XML template."""
     template_path = TEMPLATES_DIR / filename
     
     if not template_path.exists():
-        raise HTTPException(status_code=404, detail="Шаблон не найден")
+        raise HTTPException(status_code=404, detail="Template not found")
     
     template_path.unlink()
-    return {"message": f"Шаблон {filename} удалён"}
+    return {"message": f"Template {filename} deleted"}
 
 
-# Подключаем статические файлы (фронтенд)
+# Mount static files (frontend)
 if STATIC_DIR.exists():
     app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 
 def cleanup_temp_files(max_age_hours: int = 24):
-    """Очистка старых временных файлов."""
+    """Clean up old temporary files."""
     import time
     
     if not TEMP_DIR.exists():
