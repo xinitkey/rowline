@@ -89,23 +89,34 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         raise RuntimeError("Failed to convert DOCX to PDF using docx2pdf")
     except (RuntimeError, NotImplementedError) as e:
         # Try LibreOffice on Linux
-        try:
-            subprocess.run(
-                ["libreoffice", "--headless", "--convert-to", "pdf", 
-                 "--outdir", os.path.dirname(output_path) or ".", input_path],
-                check=True,
-                capture_output=True
-            )
-            # LibreOffice creates output with same name as input
-            lo_output = os.path.splitext(input_path)[0] + ".pdf"
-            if os.path.exists(lo_output) and lo_output != output_path:
-                os.rename(lo_output, output_path)
-            return
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            raise UnsupportedFormat(
-                "DOCX conversion requires either Microsoft Word (Windows/macOS) "
-                "or LibreOffice (Linux). Install libreoffice: sudo apt install libreoffice"
-            )
+        out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+        
+        # Try different possible LibreOffice command names
+        libreoffice_commands = ["libreoffice", "soffice", "libreoffice.bin"]
+        
+        for cmd in libreoffice_commands:
+            try:
+                subprocess.run(
+                    [cmd, "--headless", "--convert-to", "pdf", 
+                     "--outdir", out_dir, input_path],
+                    check=True,
+                    capture_output=True,
+                    timeout=60
+                )
+                # LibreOffice creates output with same name as input
+                lo_output = os.path.splitext(input_path)[0] + ".pdf"
+                if os.path.exists(lo_output) and lo_output != output_path:
+                    os.rename(lo_output, output_path)
+                if os.path.exists(output_path):
+                    return
+            except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                continue
+        
+        # If all attempts failed
+        raise UnsupportedFormat(
+            "DOCX conversion requires either Microsoft Word (Windows/macOS) "
+            "or LibreOffice (Linux). Install with: sudo apt install libreoffice"
+        )
 
 
 def image_to_pdf(input_path: str, output_path: str) -> None:
