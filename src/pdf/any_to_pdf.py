@@ -108,13 +108,20 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         )
     
     try:
-        # Convert using libreoffice
+        # Create environment to disable dconf warnings and user profile
+        env = os.environ.copy()
+        env["XDG_CONFIG_HOME"] = tempfile.gettempdir()
+        env["XDG_CACHE_HOME"] = tempfile.gettempdir()
+        
+        # Convert using libreoffice with proper flags for server environments
         result = subprocess.run(
-            ["libreoffice", "--headless", "--convert-to", "pdf", 
+            ["libreoffice", "--headless", "--norestore", 
+             "--convert-to", "pdf", 
              "--outdir", out_dir, input_path],
             capture_output=True,
             timeout=120,
-            text=True
+            text=True,
+            env=env
         )
         
         # LibreOffice creates output with same name as input
