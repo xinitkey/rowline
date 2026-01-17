@@ -15,9 +15,9 @@ class UnsupportedFormat(Exception):
 
 def any_to_pdf(input_path: str, output_path: str | None = None) -> str:
     """
-    Конвертация файла в PDF по расширению.
-    Поддерживает: .pdf, .html/.htm, .docx, изображения (.jpg/.jpeg/.png/.bmp/.tiff),
-    текст (.txt, .py, .log и пр. как plain text).
+    Convert file to PDF by extension.
+    Supports: .pdf, .html/.htm, .xml, .docx, .xlsx/.xls, images (.jpg/.jpeg/.png/.bmp/.tiff),
+    text (.txt, .py, .log, .md).
     """
     if output_path is None:
         base, _ = os.path.splitext(input_path)
@@ -26,7 +26,7 @@ def any_to_pdf(input_path: str, output_path: str | None = None) -> str:
     ext = os.path.splitext(input_path)[1].lower()
 
     if ext == ".pdf":
-        # уже PDF – просто копируем
+        # Already PDF - just copy
         if input_path != output_path:
             with open(input_path, "rb") as src, open(output_path, "wb") as dst:
                 dst.write(src.read())
@@ -44,16 +44,20 @@ def any_to_pdf(input_path: str, output_path: str | None = None) -> str:
         docx_to_pdf(input_path, output_path)
         return output_path
 
+    if ext in {".xlsx", ".xls"}:
+        excel_to_pdf(input_path, output_path)
+        return output_path
+
     if ext in {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}:
         image_to_pdf(input_path, output_path)
         return output_path
 
-    # простые текстовые файлы: читаем и рендерим в PDF через wkhtmltopdf
+    # Simple text files: read and render to PDF via wkhtmltopdf
     if ext in {".txt", ".py", ".log", ".md"}:
         text_to_pdf(input_path, output_path)
         return output_path
 
-    # fallback по MIME-типу (можно расширять)
+    # Fallback by MIME type
     mime, _ = mimetypes.guess_type(input_path)
     if mime and mime.startswith("image/"):
         image_to_pdf(input_path, output_path)
@@ -200,10 +204,66 @@ def xml_to_pdf(input_path: str, output_path: str) -> None:
         os.remove(tmp_html_path)
 
 
+def excel_to_pdf(input_path: str, output_path: str) -> None:
+    """
+    Convert Excel (.xlsx, .xls) to PDF.
+    Uses LibreOffice for conversion (works on all platforms).
+    """
+    import platform
+    import shutil
+    
+    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+    
+    # Check if libreoffice is installed
+    if not shutil.which("libreoffice") and not shutil.which("soffice"):
+        raise UnsupportedFormat(
+            "Excel conversion requires LibreOffice. "
+            "Install with: sudo apt install libreoffice (Linux) or brew install libreoffice (macOS)"
+        )
+    
+    try:
+        # Create environment to disable dconf warnings and user profile
+        env = os.environ.copy()
+        env["XDG_CONFIG_HOME"] = tempfile.gettempdir()
+        env["XDG_CACHE_HOME"] = tempfile.gettempdir()
+        
+        # Convert using libreoffice
+        result = subprocess.run(
+            ["libreoffice", "--headless", "--norestore", 
+             "--convert-to", "pdf", 
+             "--outdir", out_dir, input_path],
+            capture_output=True,
+            timeout=120,
+            text=True,
+            env=env
+        )
+        
+        # LibreOffice creates output with same name as input
+        lo_output = os.path.splitext(input_path)[0] + ".pdf"
+        
+        if os.path.exists(lo_output):
+            if lo_output != output_path:
+                os.rename(lo_output, output_path)
+            return
+        
+        # If conversion failed, check error output
+        error_msg = result.stderr if result.stderr else result.stdout
+        raise RuntimeError(f"LibreOffice conversion failed: {error_msg}")
+        
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Excel conversion timed out")
+    except FileNotFoundError:
+        raise UnsupportedFormat(
+            "LibreOffice not found. Install with: sudo apt install libreoffice"
+        )
+    except Exception as e:
+        raise RuntimeError(f"Excel conversion error: {str(e)}")
+
+
 def text_to_pdf(input_path: str, output_path: str) -> None:
     """
-    Примитив: оборачиваем текст в простой HTML и гоняем через wkhtmltopdf.
-    Можно заменить на fpdf/reportlab, если не хочешь зависеть от wkhtmltopdf[web:3][web:5].
+    Simple: wrap text in HTML and render to PDF via wkhtmltopdf.
+    Can be replaced with fpdf/reportlab if you don't want to depend on wkhtmltopdf.
     """
     with open(input_path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read()
