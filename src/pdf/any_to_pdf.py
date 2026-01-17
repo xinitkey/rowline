@@ -111,6 +111,41 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             break
     
     if libreoffice_cmd:
+        # Try with xvfb first for better text positioning in shapes
+        if system == "Linux" and shutil.which("xvfb-run"):
+            try:
+                # Use xvfb with LibreOffice for better rendering of text in shapes
+                subprocess.run(
+                    [
+                        "xvfb-run", "-a", "--server-args=-screen 0 1920x1080x24",
+                        libreoffice_cmd,
+                        "--headless",
+                        "--convert-to", "pdf:writer_pdf_Export",
+                        "--outdir", out_dir,
+                        input_path
+                    ],
+                    capture_output=True,
+                    timeout=120,
+                    check=True,
+                    env={
+                        **os.environ,
+                        "XDG_CONFIG_HOME": tempfile.gettempdir(),
+                        "XDG_CACHE_HOME": tempfile.gettempdir(),
+                        "DISPLAY": ":99"
+                    }
+                )
+                
+                # LibreOffice creates PDF in same dir with same name
+                expected_pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
+                if os.path.exists(expected_pdf):
+                    if expected_pdf != output_path:
+                        os.rename(expected_pdf, output_path)
+                    return
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as e:
+                print(f"LibreOffice with xvfb conversion failed: {e}")
+                pass  # Fall through to regular LibreOffice
+        
+        # Try regular LibreOffice without xvfb
         try:
             # Use LibreOffice with optimal PDF export settings
             # These filter options preserve graphics, SmartArt, diagrams
