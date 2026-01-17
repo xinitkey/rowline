@@ -67,6 +67,7 @@ h1 {
     font-size: 2.5rem;
     color: #2c2e3b;
     margin-bottom: 0.5rem;
+    text-align: center; /* Центрирование текста */
 }
 
 .subtitle {
@@ -168,11 +169,22 @@ a:hover {
 }
 
 footer {
-    text-align: center;
+    text-align: center;   
     padding: 2rem;
-    font-size: 0.8rem;
+    font-size:0.8rem;
     color: #fff;
     background-color: #179593;
+ 
+}
+
+footer a {
+    color: #fff;
+    text-decoration: none;
+    margin: 0 8px; /* Добавлено небольшое расстояние между ссылками */
+}
+
+footer a:hover {
+    text-decoration: underline;
 }
 
 /* Maintain existing hidden sections just in case */
@@ -432,3 +444,19 @@ footer {
 
 [data-theme='dark'] .content-card, [data-theme='dark'] .feature-card { background: #1f2335; box-shadow: none; }
 
+.feature-header {
+  display: inline-flex;
+  align-items: center; 
+  gap: 8px;
+}
+
+.feature-icon {
+  width: 24px;
+  height: 24px;
+  display: block;
+  flex-shrink: 0;       
+}
+
+h3 {
+  margin: 0;             
+}
