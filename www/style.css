@@ -6,7 +6,7 @@ header {
   display: flex;                  /* логотип и nav в одну строку */
   align-items: center;            /* по вертикали по центру */
   justify-content: center;        /* центрируем всё по умолчанию */
-  padding: 1rem 20px;           /* увеличенный вертикальный padding */
+  padding: 1rem 20px;             /* увеличенный вертикальный padding */
   background-color: #fff;
   position: relative;
 }
@@ -187,6 +187,17 @@ footer {
         flex-direction: column;
         padding: 1rem;
         gap: 1rem;
+    }
+
+    /* Reset absolute positioning for mobile to prevent overlap */
+    header > div {
+        position: static;
+        left: auto;
+    }
+
+    .theme-toggle {
+        position: static;
+        right: auto;
     }
 
     header nav {
