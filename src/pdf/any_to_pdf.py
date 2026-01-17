@@ -76,7 +76,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     Convert DOCX to PDF.
     On Windows: uses installed Microsoft Word.
     On macOS: uses Word application.
-    On Linux: tries unoconv first, then Pandoc, then LibreOffice.
+    On Linux: uses unoconv with xvfb for better rendering of complex documents.
     """
     import platform
     import shutil
@@ -101,7 +101,22 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         except (RuntimeError, NotImplementedError, Exception):
             pass  # Fall through to alternatives
     
-    # Try unoconv first on Linux (most reliable for complex documents)
+    # On Linux, try with xvfb for better rendering
+    if system == "Linux" and shutil.which("xvfb-run"):
+        try:
+            # Use xvfb-run with unoconv for best results
+            result = subprocess.run(
+                ["xvfb-run", "-a", "unoconv", "-f", "pdf", "-o", output_path, input_path],
+                capture_output=True,
+                timeout=120,
+                env={**os.environ, "XDG_CONFIG_HOME": tempfile.gettempdir(), "XDG_CACHE_HOME": tempfile.gettempdir()}
+            )
+            if os.path.exists(output_path) and result.returncode == 0:
+                return
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass  # Fall back to next option
+    
+    # Try unoconv without xvfb
     if shutil.which("unoconv"):
         try:
             subprocess.run(
@@ -136,8 +151,8 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     # Check if libreoffice is installed
     if not shutil.which("libreoffice") and not shutil.which("soffice"):
         raise UnsupportedFormat(
-            "DOCX conversion requires unoconv, Pandoc, or LibreOffice. Install with: "
-            "sudo apt install unoconv pandoc libreoffice"
+            "DOCX conversion requires unoconv or LibreOffice with xvfb. "
+            "Install with: sudo apt install xvfb unoconv libreoffice"
         )
     
     try:
