@@ -350,7 +350,10 @@ footer a:hover {
     background-color: #1a1b26;
     color: #c0caf5;
 }
-
+[data-theme="dark"] main {
+    background-color: #1a1b26;
+    color: #c0caf5;
+}
 [data-theme="dark"] header {
     background-color: #16161e;
 }

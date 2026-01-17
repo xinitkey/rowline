@@ -182,15 +182,19 @@ class XlsxConverter {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   gap: 1rem;              /* расстояние между элементами внутри */
 }
+[data-theme="dark"] .progress-container {
+    background-color: #24283b; }
 
 /* Спиннер */
 .spinner {
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #6a78f3;
+  border-top: 4px solid #43DDCB;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -210,6 +214,9 @@ class XlsxConverter {
   margin-bottom: 1rem;
   text-align: center;
 }
+
+[data-theme="dark"] #resultSection {
+    background-color: #24283b;
 
 /* Кнопка в блоке результата */
 #resultSection a {
