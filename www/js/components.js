@@ -4,8 +4,12 @@
  */
 async function loadComponents() {
     try {
+        // Determine base path based on current page location
+        const isInSubfolder = window.location.pathname.includes('/html/');
+        const basePath = isInSubfolder ? '../components/' : 'components/';
+        
         // Load Header
-        const headerResponse = await fetch('header.html');
+        const headerResponse = await fetch(basePath + 'header.html');
         if (!headerResponse.ok) throw new Error('Failed to load header');
         const headerHtml = await headerResponse.text();
         
@@ -18,13 +22,14 @@ async function loadComponents() {
         }
 
         // Highlight active link based on current page
-        const currentPath = window.location.pathname.split('/').pop() || 'index.html';
+        const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('nav a');
         
         navLinks.forEach(link => {
             const linkPath = link.getAttribute('href');
-            // Check if exact match or if currentPath is empty/index.html and link is index.html
-            if (linkPath === currentPath) {
+            // Check if paths match (handle both /index.html and / for root)
+            if (linkPath === currentPath || 
+                (linkPath === '/index.html' && (currentPath === '/' || currentPath === '/index.html'))) {
                 link.classList.add('active');
             }
         });
@@ -33,7 +38,7 @@ async function loadComponents() {
         document.dispatchEvent(new Event('headerLoaded'));
 
         // Load Footer
-        const footerResponse = await fetch('footer.html');
+        const footerResponse = await fetch(basePath + 'footer.html');
         if (!footerResponse.ok) throw new Error('Failed to load footer');
         const footerHtml = await footerResponse.text();
         
