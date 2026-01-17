@@ -117,10 +117,10 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         env["XDG_CONFIG_HOME"] = tempfile.gettempdir()
         env["XDG_CACHE_HOME"] = tempfile.gettempdir()
         
-        # Convert using libreoffice with proper flags for server environments
+        # Convert using libreoffice with better rendering options
         result = subprocess.run(
-            ["libreoffice", "--headless", "--norestore", 
-             "--convert-to", "pdf", 
+            ["libreoffice", "--headless", "--norestore", "--invisible",
+             "--convert-to", "pdf:writer_pdf_Export", 
              "--outdir", out_dir, input_path],
             capture_output=True,
             timeout=120,
@@ -227,10 +227,10 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
         env["XDG_CONFIG_HOME"] = tempfile.gettempdir()
         env["XDG_CACHE_HOME"] = tempfile.gettempdir()
         
-        # Convert using libreoffice
+        # Convert using libreoffice with better rendering options
         result = subprocess.run(
-            ["libreoffice", "--headless", "--norestore", 
-             "--convert-to", "pdf", 
+            ["libreoffice", "--headless", "--norestore", "--invisible",
+             "--convert-to", "pdf:writer_pdf_Export", 
              "--outdir", out_dir, input_path],
             capture_output=True,
             timeout=120,
