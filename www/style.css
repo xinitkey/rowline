@@ -297,12 +297,12 @@ footer {
 }
 
 .theme-toggle--toggled .theme-toggle__expand g path {
-    transform: scale(0.75);
+    transform: scale(0);
     transition-delay: 0s;
 }
 
 .theme-toggle--toggled .theme-toggle__expand clipPath path {
-    transform: translateX(6px);
+    transform: translateX(17px);
     transition-delay: calc(var(--theme-toggle__expand--duration) * 0.4);
     transition-timing-function: cubic-bezier(0, 0, 0, 1.25);
 }

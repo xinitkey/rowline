@@ -8,11 +8,24 @@
  */
 class ThemeToggle {
     constructor() {
-        this.toggleBtn = document.querySelector('.theme-toggle');
         this.storageKey = 'theme';
+        this.toggleBtn = null;
         
+        // Use MutationObserver to detect when the header (and button) is injected
+        this.observer = new MutationObserver(() => this.tryInit());
+        this.observer.observe(document.body, { childList: true, subtree: true });
+
+        // Try to init immediately
+        this.tryInit();
+    }
+
+    tryInit() {
+        if (this.toggleBtn) return; // Already initialized
+
+        this.toggleBtn = document.querySelector('.theme-toggle');
         if (this.toggleBtn) {
             this.init();
+            this.observer.disconnect(); // Stop observing
         }
     }
 
