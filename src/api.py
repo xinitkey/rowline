@@ -397,8 +397,8 @@ async def convert_to_pdf(
                 else:
                     os.environ["TEMP_FILE_URL"] = original_env
                     
-                # Cleanup temp file from storage after conversion attempt
-                temp_files_storage.pop(file_id, None)
+                # Don't remove from temp_files_storage yet - OnlyOffice still needs to download it
+                # Auto-cleanup will remove files older than 5 minutes
                 
         except UnsupportedFormat as e:
             raise HTTPException(status_code=400, detail=str(e))
