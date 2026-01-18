@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 import shutil
 import asyncio
+import os
 from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
