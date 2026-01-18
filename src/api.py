@@ -356,6 +356,15 @@ async def convert_to_pdf(
         # Save uploaded file
         input_path = work_dir / file.filename
         content = await file.read()
+        
+        # Check file size (limit to 500MB)
+        file_size = len(content)
+        if file_size > 500 * 1024 * 1024:  # 500MB limit
+            raise HTTPException(
+                status_code=413, 
+                detail="File too large. Maximum size is 500MB."
+            )
+        
         await asyncio.to_thread(input_path.write_bytes, content)
 
         # Define output path
