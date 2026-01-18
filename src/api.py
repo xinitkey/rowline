@@ -20,6 +20,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 
+# Storage for temporary files (for OnlyOffice access)
+import uuid
+import time
+temp_files_storage = {}  # {file_id: {"path": Path, "created_at": timestamp}}
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -57,6 +62,45 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 async def health_check():
     """Check API health."""
     return {"status": "ok", "message": "XLSX to XML Converter API is running"}
+
+
+@app.get("/temp-files/{file_id}")
+async def serve_temp_file(file_id: str):
+    """Serve temporary files for OnlyOffice to download."""
+    if file_id not in temp_files_storage:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_info = temp_files_storage[file_id]
+    file_path = file_info["path"]
+    
+    if not file_path.exists():
+        # Clean up missing file from storage
+        del temp_files_storage[file_id]
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    return FileResponse(
+        path=file_path,
+        media_type="application/octet-stream",
+        filename=file_path.name
+    )
+
+
+def cleanup_old_temp_files():
+    """Remove temporary files older than 5 minutes."""
+    current_time = time.time()
+    expired_ids = []
+    
+    for file_id, file_info in temp_files_storage.items():
+        if current_time - file_info["created_at"] > 300:  # 5 minutes
+            expired_ids.append(file_id)
+            try:
+                if file_info["path"].exists():
+                    file_info["path"].unlink()
+            except Exception:
+                pass
+    
+    for file_id in expired_ids:
+        temp_files_storage.pop(file_id, None)
 
 
 @app.get("/api/templates")
@@ -303,6 +347,9 @@ async def convert_to_pdf(
     """
     import uuid
     
+    # Cleanup old temp files before processing
+    cleanup_old_temp_files()
+    
     # Create unique temp folder for this request
     request_id = str(uuid.uuid4())
     work_dir = TEMP_DIR / request_id
@@ -314,12 +361,44 @@ async def convert_to_pdf(
         content = await file.read()
         await asyncio.to_thread(input_path.write_bytes, content)
         
+        # Register file in temp storage for OnlyOffice to access
+        file_id = str(uuid.uuid4())
+        temp_files_storage[file_id] = {
+            "path": input_path,
+            "created_at": time.time()
+        }
+        
+        # Generate public URL for OnlyOffice
+        # Use the host from the request if available, otherwise use localhost
+        from fastapi import Request
+        # Get base URL from environment or use default
+        base_url = os.environ.get("PUBLIC_URL", "http://localhost:8000")
+        public_url = f"{base_url}/temp-files/{file_id}"
+        
+        # Store public URL in temp_files_storage for cleanup reference
+        temp_files_storage[file_id]["public_url"] = public_url
+        
         # Define output path
         output_path = work_dir / (input_path.stem + ".pdf")
         
-        # Convert to PDF in separate thread
+        # Convert to PDF in separate thread, passing public URL for OnlyOffice
         try:
-            await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+            # Pass public_url as environment variable so any_to_pdf can use it
+            original_env = os.environ.get("TEMP_FILE_URL")
+            os.environ["TEMP_FILE_URL"] = public_url
+            
+            try:
+                await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+            finally:
+                # Restore original environment
+                if original_env is None:
+                    os.environ.pop("TEMP_FILE_URL", None)
+                else:
+                    os.environ["TEMP_FILE_URL"] = original_env
+                    
+                # Cleanup temp file from storage after conversion attempt
+                temp_files_storage.pop(file_id, None)
+                
         except UnsupportedFormat as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:

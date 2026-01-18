@@ -71,16 +71,21 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
     pdfkit.from_file(input_path, output_path)
 
 
-def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = None) -> bool:
+def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = None, public_url: str = None) -> bool:
     """
     Convert document to PDF using OnlyOffice Document Server API.
     Returns True if successful, False otherwise.
+    
+    Args:
+        input_path: Path to input file
+        output_path: Path for output PDF
+        onlyoffice_url: OnlyOffice server URL
+        public_url: Public URL where OnlyOffice can download the file
     
     OnlyOffice API Documentation: https://api.onlyoffice.com/editors/conversionapi
     """
     import requests
     import json
-    import time
     import uuid
     
     # Get OnlyOffice URL from environment or use default
@@ -100,65 +105,57 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
         print(f"❌ OnlyOffice healthcheck failed: {e}")
         return False
     
-    # Read file content
-    with open(input_path, "rb") as f:
-        file_content = f.read()
+    # Verify public URL is provided
+    if not public_url:
+        print(f"❌ No public URL provided for OnlyOffice to download file")
+        return False
     
-    print(f"📄 File size: {len(file_content)} bytes")
-    
-    # OnlyOffice requires a publicly accessible URL or direct file upload
-    # We'll use the simpler approach: save to temp and serve via local HTTP
-    # But since we can't easily create a public URL, we'll use an alternative method:
-    # Upload the file directly to OnlyOffice's temporary storage
-    
-    # Prepare conversion request using file upload
-    conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
+    print(f"🌐 Public file URL: {public_url}")
     
     # Get file extension
     file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
     
-    # Create unique key
+    # Create unique key for this conversion
     unique_key = str(uuid.uuid4())
     
-    # Use multipart file upload instead of URL
-    files = {
-        'file': (os.path.basename(input_path), file_content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    # Prepare JSON request according to OnlyOffice API spec
+    conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
+    
+    request_data = {
+        "async": False,
+        "filetype": file_ext,
+        "key": unique_key,
+        "outputtype": "pdf",
+        "url": public_url
     }
     
-    # Parameters for conversion
-    params = {
-        'filetype': file_ext,
-        'outputtype': 'pdf',
-        'key': unique_key,
-        'async': 'false'
-    }
-    
-    print(f"🔄 Uploading file to OnlyOffice for conversion")
+    print(f"🔄 Sending conversion request to OnlyOffice")
+    print(f"📋 Request data: {json.dumps(request_data, indent=2)}")
     
     try:
-        # Send conversion request with file upload
+        # Send conversion request with JSON payload
         response = requests.post(
             conversion_api_url,
-            files=files,
-            data=params,
-            timeout=120  # Increased timeout for file upload
+            json=request_data,
+            headers={"Content-Type": "application/json"},
+            timeout=120
         )
         
         print(f"📥 OnlyOffice response status: {response.status_code}")
         print(f"📦 OnlyOffice response headers: {dict(response.headers)}")
-        print(f"📝 OnlyOffice response text: {response.text[:500]}")
         
         if response.status_code != 200:
             print(f"❌ OnlyOffice returned status {response.status_code}")
+            print(f"Response text: {response.text[:500]}")
             return False
         
-        # Try to parse JSON response
+        # Parse JSON response
         try:
             result = response.json()
             print(f"📦 OnlyOffice response JSON: {json.dumps(result, indent=2)}")
         except json.JSONDecodeError as e:
             print(f"❌ Failed to parse OnlyOffice response as JSON: {e}")
-            print(f"Raw response: {response.text}")
+            print(f"Raw response: {response.text[:500]}")
             return False
         
         if result.get("error"):
@@ -215,8 +212,11 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     or set ONLYOFFICE_URL environment variable.
     """
     
+    # Get public URL for the file from environment
+    public_url = os.environ.get("TEMP_FILE_URL")
+    
     # Use OnlyOffice Document Server API
-    onlyoffice_result = _convert_via_onlyoffice(input_path, output_path)
+    onlyoffice_result = _convert_via_onlyoffice(input_path, output_path, public_url=public_url)
     if onlyoffice_result:
         print("✅ Converted via OnlyOffice Document Server")
         return
