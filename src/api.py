@@ -24,8 +24,52 @@ from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 # Storage for temporary files (for OnlyOffice access)
 import uuid
 import time
+import json
 from threading import Lock
-temp_files_storage = {}  # {file_id: {"path": Path, "created_at": timestamp}}
+
+# Store file mappings in a JSON file for cross-worker access
+FILE_MAPPINGS_PATH = Path(__file__).parent.parent / "temp" / "file_mappings.json"
+file_mappings_lock = Lock()
+
+def get_file_mapping(file_id: str) -> Optional[dict]:
+    """Get file mapping from JSON storage."""
+    with file_mappings_lock:
+        if not FILE_MAPPINGS_PATH.exists():
+            return None
+        try:
+            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
+            return mappings.get(file_id)
+        except Exception:
+            return None
+
+def set_file_mapping(file_id: str, file_path: Path, public_url: str):
+    """Store file mapping in JSON storage."""
+    with file_mappings_lock:
+        FILE_MAPPINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        mappings = {}
+        if FILE_MAPPINGS_PATH.exists():
+            try:
+                mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
+            except Exception:
+                pass
+        mappings[file_id] = {
+            "path": str(file_path),
+            "public_url": public_url,
+            "created_at": time.time()
+        }
+        FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
+
+def remove_file_mapping(file_id: str):
+    """Remove file mapping from JSON storage."""
+    with file_mappings_lock:
+        if not FILE_MAPPINGS_PATH.exists():
+            return
+        try:
+            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
+            mappings.pop(file_id, None)
+            FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
+        except Exception:
+            pass
 
 # Semaphore to limit OnlyOffice concurrent requests (only 1 at a time)
 onlyoffice_semaphore = asyncio.Semaphore(1)
@@ -73,21 +117,20 @@ async def health_check():
 async def serve_temp_file(file_id: str):
     """Serve temporary files for OnlyOffice to download."""
     print(f"[TempFiles] Request: {file_id}")
-    print(f"[TempFiles] Available files in storage: {list(temp_files_storage.keys())}")
     
-    if file_id not in temp_files_storage:
+    file_info = get_file_mapping(file_id)
+    if not file_info:
         print(f"[TempFiles] ERROR: File not found in storage: {file_id}")
         raise HTTPException(status_code=404, detail="File not found")
     
-    file_info = temp_files_storage[file_id]
-    file_path = file_info["path"]
+    file_path = Path(file_info["path"])
     
     print(f"[TempFiles] Serving file: {file_path}")
     
     if not file_path.exists():
         print(f"[TempFiles] ERROR: File doesn't exist on disk: {file_path}")
         # Clean up missing file from storage
-        del temp_files_storage[file_id]
+        remove_file_mapping(file_id)
         raise HTTPException(status_code=404, detail="File not found")
     
     print(f"[TempFiles] SUCCESS: Returning {file_path.name} ({file_path.stat().st_size} bytes)")
@@ -100,21 +143,33 @@ async def serve_temp_file(file_id: str):
 
 
 def cleanup_old_temp_files():
-    """Remove temporary files older than 5 minutes."""
+    """Remove temporary files older than 10 minutes."""
     current_time = time.time()
-    expired_ids = []
     
-    for file_id, file_info in temp_files_storage.items():
-        if current_time - file_info["created_at"] > 300:  # 5 minutes
-            expired_ids.append(file_id)
-            try:
-                if file_info["path"].exists():
-                    file_info["path"].unlink()
-            except Exception:
-                pass
-    
-    for file_id in expired_ids:
-        temp_files_storage.pop(file_id, None)
+    with file_mappings_lock:
+        if not FILE_MAPPINGS_PATH.exists():
+            return
+        
+        try:
+            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
+        except Exception:
+            return
+        
+        expired_ids = []
+        for file_id, file_info in mappings.items():
+            if current_time - file_info["created_at"] > 600:  # 10 minutes
+                expired_ids.append(file_id)
+                try:
+                    file_path = Path(file_info["path"])
+                    if file_path.exists():
+                        file_path.unlink()
+                except Exception:
+                    pass
+        
+        for file_id in expired_ids:
+            mappings.pop(file_id, None)
+        
+        FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
 
 
 @app.get("/api/templates")
@@ -375,22 +430,13 @@ async def convert_to_pdf(
         content = await file.read()
         await asyncio.to_thread(input_path.write_bytes, content)
         
-        # Register file in temp storage for OnlyOffice to access
-        file_id = str(uuid.uuid4())
-        temp_files_storage[file_id] = {
-            "path": input_path,
-            "created_at": time.time()
-        }
-        
         # Generate public URL for OnlyOffice
-        # Use the host from the request if available, otherwise use localhost
-        from fastapi import Request
-        # Get base URL from environment or use default
+        file_id = str(uuid.uuid4())
         base_url = os.environ.get("PUBLIC_URL", "http://localhost:8000")
         public_url = f"{base_url}/temp-files/{file_id}"
         
-        # Store public URL in temp_files_storage for cleanup reference
-        temp_files_storage[file_id]["public_url"] = public_url
+        # Register file in temp storage for OnlyOffice to access (file-based for multi-worker)
+        set_file_mapping(file_id, input_path, public_url)
         
         # Define output path
         output_path = work_dir / (input_path.stem + ".pdf")
