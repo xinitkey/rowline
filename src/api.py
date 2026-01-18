@@ -21,6 +21,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 
+# Path to static files (frontend)
+STATIC_DIR = Path(__file__).parent.parent / "www"
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+# Use project folder instead of system /tmp
+TEMP_DIR = Path(__file__).parent.parent / "temp"
+
+# Thread pool for heavy operations
+# On Windows use large thread pool instead of multiprocessing
+import os
+MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Minimum 16 threads
+executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+
 # Create temp directory if it doesn't exist
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -40,21 +52,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Path to static files (frontend)
-STATIC_DIR = Path(__file__).parent.parent / "www"
-TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
-# Use project folder instead of system /tmp
-TEMP_DIR = Path(__file__).parent.parent / "temp"
-
-# Thread pool for heavy operations
-# On Windows use large thread pool instead of multiprocessing
-import os
-MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Minimum 16 threads
-executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
-
-# Create temp directory if it doesn't exist
-TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @app.get("/api/health")
