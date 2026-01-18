@@ -233,7 +233,7 @@
             try {
                 // Create AbortController for timeout handling
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 360000); // 6 minutes timeout
+                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
                 
                 const response = await fetch('/api/convert-to-pdf', {
                     method: 'POST',

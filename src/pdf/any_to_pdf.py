@@ -98,18 +98,24 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     file_size = os.path.getsize(input_path)
     print(f"[DOCX] Converting file: {os.path.basename(input_path)} ({file_size} bytes)")
     
+    # Check if file is extremely large (>100MB)
+    if file_size > 100 * 1024 * 1024:
+        print(f"[DOCX] Warning: Large file detected ({file_size} bytes). Conversion may take a long time.")
+    
     try:
         result = subprocess.run(
             [
                 libreoffice_cmd,
                 "--headless",
                 "--invisible",  # Run without GUI for better performance
+                "--nocrashreport",  # Disable crash reporting
+                "--nodefault",  # Don't load default modules
                 "--convert-to", "pdf",
                 "--outdir", out_dir,
                 input_path
             ],
             capture_output=True,
-            timeout=300,  # Increased timeout for large files (5 minutes)
+            timeout=600,  # Increased timeout for very large files (10 minutes)
             check=True,
             env={
                 **os.environ,
@@ -176,18 +182,24 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
     file_size = os.path.getsize(input_path)
     print(f"[Excel] Converting file: {os.path.basename(input_path)} ({file_size} bytes)")
     
+    # Check if file is extremely large (>100MB)
+    if file_size > 100 * 1024 * 1024:
+        print(f"[Excel] Warning: Large file detected ({file_size} bytes). Conversion may take a long time.")
+    
     try:
         result = subprocess.run(
             [
                 libreoffice_cmd,
                 "--headless",
                 "--invisible",  # Run without GUI for better performance
+                "--nocrashreport",  # Disable crash reporting
+                "--nodefault",  # Don't load default modules
                 "--convert-to", "pdf:calc_pdf_Export",
                 "--outdir", out_dir,
                 input_path
             ],
             capture_output=True,
-            timeout=300,  # Increased timeout for large files (5 minutes)
+            timeout=600,  # Increased timeout for very large files (10 minutes)
             check=True,
             env={
                 **os.environ,
