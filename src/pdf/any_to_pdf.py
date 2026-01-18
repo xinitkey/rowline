@@ -92,25 +92,25 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     if onlyoffice_url is None:
         onlyoffice_url = os.environ.get("ONLYOFFICE_URL", "http://localhost:8080")
     
-    print(f"🔍 Attempting OnlyOffice conversion using: {onlyoffice_url}")
+    print(f"[OnlyOffice] Attempting conversion using: {onlyoffice_url}")
     
     # Check if OnlyOffice is available
     try:
         health_check = requests.get(f"{onlyoffice_url}/healthcheck", timeout=2)
         if health_check.status_code != 200:
-            print(f"❌ OnlyOffice healthcheck failed: status {health_check.status_code}")
+            print(f"[OnlyOffice] ERROR: healthcheck failed: status {health_check.status_code}")
             return False
-        print(f"✅ OnlyOffice healthcheck passed")
+        print(f"[OnlyOffice] Healthcheck passed")
     except requests.exceptions.RequestException as e:
-        print(f"❌ OnlyOffice healthcheck failed: {e}")
+        print(f"[OnlyOffice] ERROR: healthcheck failed: {e}")
         return False
     
     # Verify public URL is provided
     if not public_url:
-        print(f"❌ No public URL provided for OnlyOffice to download file")
+        print(f"[OnlyOffice] ERROR: No public URL provided")
         return False
     
-    print(f"🌐 Public file URL: {public_url}")
+    print(f"[OnlyOffice] Public file URL: {public_url}")
     
     # Get file extension
     file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
@@ -125,7 +125,7 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     ]
     
     for conversion_api_url in endpoints_to_try:
-        print(f"🔄 Trying endpoint: {conversion_api_url}")
+        print(f"[OnlyOffice] Trying endpoint: {conversion_api_url}")
         
         # Get filename for title
         filename = os.path.basename(input_path)
@@ -139,8 +139,8 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
             "url": public_url
         }
     
-    print(f"🔄 Sending conversion request to OnlyOffice")
-    print(f"📋 Request data: {json.dumps(request_data, indent=2)}")
+    print(f"[OnlyOffice] Sending conversion request")
+    print(f"[OnlyOffice] Request data: {json.dumps(request_data, indent=2)}")
     
     try:
         # Send conversion request with JSON payload
@@ -151,62 +151,62 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
             timeout=120
         )
         
-        print(f"📥 OnlyOffice response status: {response.status_code}")
-        print(f"📦 OnlyOffice response headers: {dict(response.headers)}")
+        print(f"[OnlyOffice] Response status: {response.status_code}")
+        print(f"[OnlyOffice] Response headers: {dict(response.headers)}")
         
         if response.status_code != 200:
-            print(f"❌ OnlyOffice returned status {response.status_code}")
+            print(f"[OnlyOffice] ERROR: returned status {response.status_code}")
             print(f"Response text: {response.text[:500]}")
             return False
         
         # Parse JSON response
         try:
             result = response.json()
-            print(f"📦 OnlyOffice response JSON: {json.dumps(result, indent=2)}")
+            print(f"[OnlyOffice] Response JSON: {json.dumps(result, indent=2)}")
         except json.JSONDecodeError as e:
-            print(f"❌ Failed to parse OnlyOffice response as JSON: {e}")
+            print(f"[OnlyOffice] ERROR: Failed to parse response as JSON: {e}")
             print(f"Raw response: {response.text[:500]}")
             return False
         
         if result.get("error"):
             error_code = result.get("error")
-            print(f"❌ OnlyOffice error code: {error_code}")
+            print(f"[OnlyOffice] ERROR: error code: {error_code}")
             return False
         
         # Get converted file URL or data
         pdf_url = result.get("fileUrl") or result.get("url")
         if pdf_url:
-            print(f"⬇️ Downloading PDF from: {pdf_url}")
+            print(f"[OnlyOffice] Downloading PDF from: {pdf_url}")
             
             # Download PDF file
             pdf_response = requests.get(pdf_url, timeout=30)
             if pdf_response.status_code == 200:
                 with open(output_path, "wb") as f:
                     f.write(pdf_response.content)
-                print(f"✅ PDF saved: {output_path} ({len(pdf_response.content)} bytes)")
+                print(f"[OnlyOffice] SUCCESS: PDF saved: {output_path} ({len(pdf_response.content)} bytes)")
                 return True
             else:
-                print(f"❌ Failed to download PDF: {pdf_response.status_code}")
+                print(f"[OnlyOffice] ERROR: Failed to download PDF: {pdf_response.status_code}")
                 return False
         
         # Check if file data is returned directly
         if result.get("fileData"):
-            print(f"💾 Saving PDF from direct response")
+            print(f"[OnlyOffice] Saving PDF from direct response")
             import base64
             pdf_data = base64.b64decode(result.get("fileData"))
             with open(output_path, "wb") as f:
                 f.write(pdf_data)
-            print(f"✅ PDF saved: {output_path} ({len(pdf_data)} bytes)")
+            print(f"[OnlyOffice] SUCCESS: PDF saved: {output_path} ({len(pdf_data)} bytes)")
             return True
         
-        print(f"❌ OnlyOffice did not return PDF URL or data. Response keys: {result.keys()}")
+        print(f"[OnlyOffice] ERROR: No PDF URL or data. Response keys: {result.keys()}")
         return False
             
     except requests.exceptions.RequestException as e:
-        print(f"❌ OnlyOffice request failed: {e}")
+        print(f"[OnlyOffice] ERROR: Request failed: {e}")
         return False
     except Exception as e:
-        print(f"❌ OnlyOffice conversion error: {e}")
+        print(f"[OnlyOffice] ERROR: Conversion error: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -228,7 +228,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     # Use OnlyOffice Document Server API
     onlyoffice_result = _convert_via_onlyoffice(input_path, output_path, public_url=public_url)
     if onlyoffice_result:
-        print("✅ Converted via OnlyOffice Document Server")
+        print("[DOCX] SUCCESS: Converted via OnlyOffice Document Server")
         return
     
     # If OnlyOffice failed, raise an error
