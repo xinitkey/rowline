@@ -148,7 +148,7 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
             conversion_api_url,
             json=request_data,
             headers={"Content-Type": "application/json"},
-            timeout=120
+            timeout=300  # 5 minutes for large files
         )
         
         print(f"[OnlyOffice] Response status: {response.status_code}")
@@ -179,7 +179,7 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
             print(f"[OnlyOffice] Downloading PDF from: {pdf_url}")
             
             # Download PDF file
-            pdf_response = requests.get(pdf_url, timeout=30)
+            pdf_response = requests.get(pdf_url, timeout=120)  # 2 minutes for large PDFs
             if pdf_response.status_code == 200:
                 with open(output_path, "wb") as f:
                     f.write(pdf_response.content)
