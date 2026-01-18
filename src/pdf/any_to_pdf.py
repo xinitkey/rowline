@@ -103,8 +103,6 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
-            text=True,
-            encoding='utf-8',
             timeout=120,
             check=True,
             env={
@@ -116,9 +114,11 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         
         # Log output safely (handle encoding issues)
         if result.stdout:
-            print(f"[DOCX] LibreOffice stdout: {result.stdout.encode('utf-8', errors='replace').decode('utf-8')}")
+            safe_stdout = result.stdout.decode('utf-8', errors='replace')
+            print(f"[DOCX] LibreOffice stdout: {safe_stdout}")
         if result.stderr:
-            print(f"[DOCX] LibreOffice stderr: {result.stderr.encode('utf-8', errors='replace').decode('utf-8')}")
+            safe_stderr = result.stderr.decode('utf-8', errors='replace')
+            print(f"[DOCX] LibreOffice stderr: {safe_stderr}")
         
         expected_pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
         if os.path.exists(expected_pdf):
@@ -132,9 +132,11 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         # Handle encoding issues in error output
         error_msg = str(e)
         if hasattr(e, 'stdout') and e.stdout:
-            error_msg += f" stdout: {e.stdout.encode('utf-8', errors='replace').decode('utf-8')}"
+            safe_stdout = e.stdout.decode('utf-8', errors='replace')
+            error_msg += f" stdout: {safe_stdout}"
         if hasattr(e, 'stderr') and e.stderr:
-            error_msg += f" stderr: {e.stderr.encode('utf-8', errors='replace').decode('utf-8')}"
+            safe_stderr = e.stderr.decode('utf-8', errors='replace')
+            error_msg += f" stderr: {safe_stderr}"
         raise RuntimeError(f"DOCX conversion failed: {error_msg}")
     except subprocess.TimeoutExpired:
         raise RuntimeError("DOCX conversion timed out")
@@ -171,8 +173,6 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
-            text=True,
-            encoding='utf-8',
             timeout=120,
             check=True,
             env={
@@ -184,9 +184,11 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
         
         # Log output safely (handle encoding issues)
         if result.stdout:
-            print(f"[Excel] LibreOffice stdout: {result.stdout.encode('utf-8', errors='replace').decode('utf-8')}")
+            safe_stdout = result.stdout.decode('utf-8', errors='replace')
+            print(f"[Excel] LibreOffice stdout: {safe_stdout}")
         if result.stderr:
-            print(f"[Excel] LibreOffice stderr: {result.stderr.encode('utf-8', errors='replace').decode('utf-8')}")
+            safe_stderr = result.stderr.decode('utf-8', errors='replace')
+            print(f"[Excel] LibreOffice stderr: {safe_stderr}")
         
         expected_pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
         if os.path.exists(expected_pdf):
@@ -200,9 +202,11 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
         # Handle encoding issues in error output
         error_msg = str(e)
         if hasattr(e, 'stdout') and e.stdout:
-            error_msg += f" stdout: {e.stdout.encode('utf-8', errors='replace').decode('utf-8')}"
+            safe_stdout = e.stdout.decode('utf-8', errors='replace')
+            error_msg += f" stdout: {safe_stdout}"
         if hasattr(e, 'stderr') and e.stderr:
-            error_msg += f" stderr: {e.stderr.encode('utf-8', errors='replace').decode('utf-8')}"
+            safe_stderr = e.stderr.decode('utf-8', errors='replace')
+            error_msg += f" stderr: {safe_stderr}"
         raise RuntimeError(f"Excel conversion failed: {error_msg}")
     except subprocess.TimeoutExpired:
         raise RuntimeError("Excel conversion timed out")
