@@ -24,7 +24,11 @@ from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 # Storage for temporary files (for OnlyOffice access)
 import uuid
 import time
+from threading import Lock
 temp_files_storage = {}  # {file_id: {"path": Path, "created_at": timestamp}}
+
+# Semaphore to limit OnlyOffice concurrent requests (only 1 at a time)
+onlyoffice_semaphore = asyncio.Semaphore(1)
 
 
 # Create FastAPI application
@@ -391,28 +395,31 @@ async def convert_to_pdf(
         # Define output path
         output_path = work_dir / (input_path.stem + ".pdf")
         
-        # Convert to PDF in separate thread, passing public URL for OnlyOffice
-        try:
-            # Pass public_url as environment variable so any_to_pdf can use it
-            original_env = os.environ.get("TEMP_FILE_URL")
-            os.environ["TEMP_FILE_URL"] = public_url
-            
+        # Convert to PDF with OnlyOffice semaphore to prevent concurrent requests
+        # OnlyOffice can only handle one conversion at a time
+        async with onlyoffice_semaphore:
+            print(f"[API] Starting conversion (queue position acquired)")
             try:
-                await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
-            finally:
-                # Restore original environment
-                if original_env is None:
-                    os.environ.pop("TEMP_FILE_URL", None)
-                else:
-                    os.environ["TEMP_FILE_URL"] = original_env
-                    
-                # Don't remove from temp_files_storage yet - OnlyOffice still needs to download it
-                # Auto-cleanup will remove files older than 5 minutes
+                # Pass public_url as environment variable so any_to_pdf can use it
+                original_env = os.environ.get("TEMP_FILE_URL")
+                os.environ["TEMP_FILE_URL"] = public_url
                 
-        except UnsupportedFormat as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+                try:
+                    await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+                finally:
+                    # Restore original environment
+                    if original_env is None:
+                        os.environ.pop("TEMP_FILE_URL", None)
+                    else:
+                        os.environ["TEMP_FILE_URL"] = original_env
+                        
+                    # Don't remove from temp_files_storage yet - OnlyOffice still needs to download it
+                    # Auto-cleanup will remove files older than 5 minutes
+                    
+            except UnsupportedFormat as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
         
         if not output_path.exists():
             raise HTTPException(status_code=500, detail="Failed to create PDF file")
