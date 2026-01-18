@@ -225,16 +225,23 @@
             if (!selectedFile) return;
             
             convertBtn.disabled = true;
-            showStatus('loading', '<span class="spinner"></span>Converting...');
+            showStatus('loading', '<span class="spinner"></span>Converting... This may take several minutes for large files.');
             
             const formData = new FormData();
             formData.append('file', selectedFile);
             
             try {
+                // Create AbortController for timeout handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 360000); // 6 minutes timeout
+                
                 const response = await fetch('/api/convert-to-pdf', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                     let errorMsg = 'Conversion failed';
@@ -261,7 +268,11 @@
                 
                 showStatus('success', '✅ Conversion successful! File downloaded.');
             } catch (err) {
-                showStatus('error', '❌ Error: ' + err.message);
+                if (err.name === 'AbortError') {
+                    showStatus('error', '❌ Error: Conversion timed out. The file may be too large or complex. Please try with a smaller file.');
+                } else {
+                    showStatus('error', '❌ Error: ' + err.message);
+                }
             } finally {
                 convertBtn.disabled = false;
             }
