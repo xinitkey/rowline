@@ -121,11 +121,15 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     # Prepare JSON request according to OnlyOffice API spec
     conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
     
+    # Get filename for title
+    filename = os.path.basename(input_path)
+    
     request_data = {
         "async": False,
         "filetype": file_ext,
         "key": unique_key,
         "outputtype": "pdf",
+        "title": filename,
         "url": public_url
     }
     

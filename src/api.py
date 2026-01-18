@@ -68,16 +68,25 @@ async def health_check():
 @app.get("/temp-files/{file_id}")
 async def serve_temp_file(file_id: str):
     """Serve temporary files for OnlyOffice to download."""
+    print(f"📥 Temp file request: {file_id}")
+    print(f"📦 Available files in storage: {list(temp_files_storage.keys())}")
+    
     if file_id not in temp_files_storage:
+        print(f"❌ File not found in storage: {file_id}")
         raise HTTPException(status_code=404, detail="File not found")
     
     file_info = temp_files_storage[file_id]
     file_path = file_info["path"]
     
+    print(f"📄 Serving file: {file_path}")
+    
     if not file_path.exists():
+        print(f"❌ File doesn't exist on disk: {file_path}")
         # Clean up missing file from storage
         del temp_files_storage[file_id]
         raise HTTPException(status_code=404, detail="File not found")
+    
+    print(f"✅ File found, returning: {file_path.name} ({file_path.stat().st_size} bytes)")
     
     return FileResponse(
         path=file_path,
