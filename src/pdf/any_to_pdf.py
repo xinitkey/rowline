@@ -130,13 +130,22 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
         # Get filename for title
         filename = os.path.basename(input_path)
         
+        # Request data with enhanced rendering options
         request_data = {
             "async": False,
             "filetype": file_ext,
             "key": unique_key,
             "outputtype": "pdf",
             "title": filename,
-            "url": public_url
+            "url": public_url,
+            # Additional parameters for better quality
+            "thumbnail": {
+                "aspect": 0,  # Keep aspect ratio
+                "first": True,
+                "width": 1200,  # Higher resolution
+                "height": 1600
+            },
+            "region": "en-US"  # Locale settings
         }
     
     print(f"🔄 Sending conversion request to OnlyOffice")
