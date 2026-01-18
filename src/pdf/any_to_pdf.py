@@ -118,20 +118,26 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     # Create unique key for this conversion
     unique_key = str(uuid.uuid4())
     
-    # Prepare JSON request according to OnlyOffice API spec
-    conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
+    # Try both possible endpoints (older and newer versions of OnlyOffice)
+    endpoints_to_try = [
+        f"{onlyoffice_url}/ConvertService.ashx",
+        f"{onlyoffice_url}/converter"
+    ]
     
-    # Get filename for title
-    filename = os.path.basename(input_path)
-    
-    request_data = {
-        "async": False,
-        "filetype": file_ext,
-        "key": unique_key,
-        "outputtype": "pdf",
-        "title": filename,
-        "url": public_url
-    }
+    for conversion_api_url in endpoints_to_try:
+        print(f"🔄 Trying endpoint: {conversion_api_url}")
+        
+        # Get filename for title
+        filename = os.path.basename(input_path)
+        
+        request_data = {
+            "async": False,
+            "filetype": file_ext,
+            "key": unique_key,
+            "outputtype": "pdf",
+            "title": filename,
+            "url": public_url
+        }
     
     print(f"🔄 Sending conversion request to OnlyOffice")
     print(f"📋 Request data: {json.dumps(request_data, indent=2)}")
