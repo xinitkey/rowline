@@ -375,8 +375,8 @@ class XlsxConverter {
      * Render template selector dropdown
      */
     renderTemplateSelector() {
-        // Only render on index.html, not on templates.html
-        if (window.location.pathname.includes('templates.html')) {
+        // Only render on index page, not on templates page
+        if (window.location.pathname.includes('/html/templates')) {
             return;
         }
         

@@ -27,9 +27,9 @@ async function loadComponents() {
         
         navLinks.forEach(link => {
             const linkPath = link.getAttribute('href');
-            // Check if paths match (handle both /index.html and / for root)
+            // Check if paths match (handle root path and clean URLs)
             if (linkPath === currentPath || 
-                (linkPath === '/index.html' && (currentPath === '/' || currentPath === '/index.html'))) {
+                (linkPath === '/' && (currentPath === '/' || currentPath === '/index.html'))) {
                 link.classList.add('active');
             }
         });
