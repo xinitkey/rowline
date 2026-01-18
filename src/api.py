@@ -236,9 +236,13 @@ async def convert_xlsx_to_xml(
                 start_row
             )
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            # Sanitize error message for HTTP response
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=400, detail=safe_detail)
         except FileNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            # Sanitize error message for HTTP response
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=404, detail=safe_detail)
         
         if not result_files:
             raise HTTPException(
@@ -248,12 +252,17 @@ async def convert_xlsx_to_xml(
         
         # If one file - return it directly
         if len(result_files) == 1:
+            # Sanitize filename for HTTP headers (ASCII only)
+            safe_filename = "".join(c for c in result_files[0].name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "result.xml"
+            
             return FileResponse(
                 path=result_files[0],
-                filename=result_files[0].name,
+                filename=safe_filename,
                 media_type="application/xml",
                 headers={
-                    "Content-Disposition": f'attachment; filename="{result_files[0].name}"'
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
                 }
             )
         
@@ -267,12 +276,17 @@ async def convert_xlsx_to_xml(
         
         await asyncio.to_thread(create_zip)
         
+        # Sanitize ZIP filename for HTTP headers (ASCII only)
+        safe_zip_filename = "".join(c for c in zip_path.name if ord(c) < 128)
+        if not safe_zip_filename:
+            safe_zip_filename = "results.zip"
+        
         return FileResponse(
             path=zip_path,
-            filename=zip_path.name,
+            filename=safe_zip_filename,
             media_type="application/zip",
             headers={
-                "Content-Disposition": f'attachment; filename="{zip_path.name}"'
+                "Content-Disposition": f'attachment; filename="{safe_zip_filename}"'
             }
         )
         
@@ -351,19 +365,28 @@ async def convert_to_pdf(
         try:
             await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
         except UnsupportedFormat as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            # Sanitize error message for HTTP response
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=400, detail=safe_detail)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+            # Sanitize error message for HTTP response
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
 
         if not output_path.exists():
             raise HTTPException(status_code=500, detail="Failed to create PDF file")
 
+        # Sanitize filename for HTTP headers (ASCII only)
+        safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+        if not safe_filename:
+            safe_filename = "converted.pdf"
+
         return FileResponse(
             path=output_path,
-            filename=output_path.name,
+            filename=safe_filename,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{output_path.name}"'
+                "Content-Disposition": f'attachment; filename="{safe_filename}"'
             }
         )
 
