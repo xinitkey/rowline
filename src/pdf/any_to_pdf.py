@@ -81,6 +81,7 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     import requests
     import json
     import time
+    import uuid
     
     # Get OnlyOffice URL from environment or use default
     if onlyoffice_url is None:
@@ -105,71 +106,94 @@ def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: s
     
     print(f"📄 File size: {len(file_content)} bytes")
     
-    # Prepare conversion request
+    # OnlyOffice requires a publicly accessible URL or direct file upload
+    # We'll use the simpler approach: save to temp and serve via local HTTP
+    # But since we can't easily create a public URL, we'll use an alternative method:
+    # Upload the file directly to OnlyOffice's temporary storage
+    
+    # Prepare conversion request using file upload
     conversion_api_url = f"{onlyoffice_url}/ConvertService.ashx"
     
     # Get file extension
     file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
     
-    # Prepare request payload
-    payload = {
-        "async": False,
-        "filetype": file_ext,
-        "key": os.path.basename(input_path) + str(time.time()),  # Unique key
-        "outputtype": "pdf",
-        "title": os.path.basename(input_path),
-        "url": ""  # Will be filled with base64 data URL
+    # Create unique key
+    unique_key = str(uuid.uuid4())
+    
+    # Use multipart file upload instead of URL
+    files = {
+        'file': (os.path.basename(input_path), file_content, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     }
     
-    # Encode file as base64 data URL
-    import base64
-    file_base64 = base64.b64encode(file_content).decode('utf-8')
-    mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    data_url = f"data:{mime_type};base64,{file_base64}"
-    payload["url"] = data_url
+    # Parameters for conversion
+    params = {
+        'filetype': file_ext,
+        'outputtype': 'pdf',
+        'key': unique_key,
+        'async': 'false'
+    }
     
-    print(f"🔄 Sending conversion request to {conversion_api_url}")
+    print(f"🔄 Uploading file to OnlyOffice for conversion")
     
     try:
-        # Send conversion request
+        # Send conversion request with file upload
         response = requests.post(
             conversion_api_url,
-            json=payload,
-            timeout=60
+            files=files,
+            data=params,
+            timeout=120  # Increased timeout for file upload
         )
         
         print(f"📥 OnlyOffice response status: {response.status_code}")
+        print(f"📦 OnlyOffice response headers: {dict(response.headers)}")
+        print(f"📝 OnlyOffice response text: {response.text[:500]}")
         
         if response.status_code != 200:
-            print(f"❌ OnlyOffice returned status {response.status_code}: {response.text}")
+            print(f"❌ OnlyOffice returned status {response.status_code}")
             return False
         
-        result = response.json()
-        print(f"📦 OnlyOffice response: {json.dumps(result, indent=2)}")
+        # Try to parse JSON response
+        try:
+            result = response.json()
+            print(f"📦 OnlyOffice response JSON: {json.dumps(result, indent=2)}")
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse OnlyOffice response as JSON: {e}")
+            print(f"Raw response: {response.text}")
+            return False
         
         if result.get("error"):
             error_code = result.get("error")
             print(f"❌ OnlyOffice error code: {error_code}")
             return False
         
-        # Download converted PDF
+        # Get converted file URL or data
         pdf_url = result.get("fileUrl") or result.get("url")
-        if not pdf_url:
-            print(f"❌ OnlyOffice did not return PDF URL. Response keys: {result.keys()}")
-            return False
+        if pdf_url:
+            print(f"⬇️ Downloading PDF from: {pdf_url}")
+            
+            # Download PDF file
+            pdf_response = requests.get(pdf_url, timeout=30)
+            if pdf_response.status_code == 200:
+                with open(output_path, "wb") as f:
+                    f.write(pdf_response.content)
+                print(f"✅ PDF saved: {output_path} ({len(pdf_response.content)} bytes)")
+                return True
+            else:
+                print(f"❌ Failed to download PDF: {pdf_response.status_code}")
+                return False
         
-        print(f"⬇️ Downloading PDF from: {pdf_url}")
-        
-        # Download PDF file
-        pdf_response = requests.get(pdf_url, timeout=30)
-        if pdf_response.status_code == 200:
+        # Check if file data is returned directly
+        if result.get("fileData"):
+            print(f"💾 Saving PDF from direct response")
+            import base64
+            pdf_data = base64.b64decode(result.get("fileData"))
             with open(output_path, "wb") as f:
-                f.write(pdf_response.content)
-            print(f"✅ PDF saved: {output_path} ({len(pdf_response.content)} bytes)")
+                f.write(pdf_data)
+            print(f"✅ PDF saved: {output_path} ({len(pdf_data)} bytes)")
             return True
-        else:
-            print(f"❌ Failed to download PDF from OnlyOffice: {pdf_response.status_code}")
-            return False
+        
+        print(f"❌ OnlyOffice did not return PDF URL or data. Response keys: {result.keys()}")
+        return False
             
     except requests.exceptions.RequestException as e:
         print(f"❌ OnlyOffice request failed: {e}")
