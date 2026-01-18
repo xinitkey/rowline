@@ -77,6 +77,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     LibreOffice provides good compatibility with Microsoft Office documents.
     """
     import shutil
+    import os
     
     out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
     
@@ -93,17 +94,22 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             "Install with: sudo apt install libreoffice"
         )
     
+    # Log file size for debugging
+    file_size = os.path.getsize(input_path)
+    print(f"[DOCX] Converting file: {os.path.basename(input_path)} ({file_size} bytes)")
+    
     try:
         result = subprocess.run(
             [
                 libreoffice_cmd,
                 "--headless",
+                "--invisible",  # Run without GUI for better performance
                 "--convert-to", "pdf",
                 "--outdir", out_dir,
                 input_path
             ],
             capture_output=True,
-            timeout=120,
+            timeout=300,  # Increased timeout for large files (5 minutes)
             check=True,
             env={
                 **os.environ,
@@ -111,6 +117,8 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                 "XDG_CACHE_HOME": tempfile.gettempdir()
             }
         )
+        
+        print(f"[DOCX] LibreOffice conversion completed successfully")
         
         # Log output safely (handle encoding issues)
         if result.stdout:
@@ -147,6 +155,7 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
     Convert Excel (XLSX/XLS) to PDF using LibreOffice.
     """
     import shutil
+    import os
     
     out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
     
@@ -163,17 +172,22 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
             "Install with: sudo apt install libreoffice"
         )
     
+    # Log file size for debugging
+    file_size = os.path.getsize(input_path)
+    print(f"[Excel] Converting file: {os.path.basename(input_path)} ({file_size} bytes)")
+    
     try:
         result = subprocess.run(
             [
                 libreoffice_cmd,
                 "--headless",
+                "--invisible",  # Run without GUI for better performance
                 "--convert-to", "pdf:calc_pdf_Export",
                 "--outdir", out_dir,
                 input_path
             ],
             capture_output=True,
-            timeout=120,
+            timeout=300,  # Increased timeout for large files (5 minutes)
             check=True,
             env={
                 **os.environ,
@@ -181,6 +195,8 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 "XDG_CACHE_HOME": tempfile.gettempdir()
             }
         )
+        
+        print(f"[Excel] LibreOffice conversion completed successfully")
         
         # Log output safely (handle encoding issues)
         if result.stdout:
