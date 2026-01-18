@@ -21,58 +21,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
 
-# Storage for temporary files (for OnlyOffice access)
-import uuid
-import time
-import json
-from threading import Lock
-
-# Store file mappings in a JSON file for cross-worker access
-FILE_MAPPINGS_PATH = Path(__file__).parent.parent / "temp" / "file_mappings.json"
-file_mappings_lock = Lock()
-
-def get_file_mapping(file_id: str) -> Optional[dict]:
-    """Get file mapping from JSON storage."""
-    with file_mappings_lock:
-        if not FILE_MAPPINGS_PATH.exists():
-            return None
-        try:
-            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
-            return mappings.get(file_id)
-        except Exception:
-            return None
-
-def set_file_mapping(file_id: str, file_path: Path, public_url: str):
-    """Store file mapping in JSON storage."""
-    with file_mappings_lock:
-        FILE_MAPPINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-        mappings = {}
-        if FILE_MAPPINGS_PATH.exists():
-            try:
-                mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
-            except Exception:
-                pass
-        mappings[file_id] = {
-            "path": str(file_path),
-            "public_url": public_url,
-            "created_at": time.time()
-        }
-        FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
-
-def remove_file_mapping(file_id: str):
-    """Remove file mapping from JSON storage."""
-    with file_mappings_lock:
-        if not FILE_MAPPINGS_PATH.exists():
-            return
-        try:
-            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
-            mappings.pop(file_id, None)
-            FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
-        except Exception:
-            pass
-
-# Semaphore to limit OnlyOffice concurrent requests (only 1 at a time)
-onlyoffice_semaphore = asyncio.Semaphore(1)
+# Create temp directory if it doesn't exist
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # Create FastAPI application
@@ -140,36 +90,6 @@ async def serve_temp_file(file_id: str):
         media_type="application/octet-stream",
         filename=file_path.name
     )
-
-
-def cleanup_old_temp_files():
-    """Remove temporary files older than 10 minutes."""
-    current_time = time.time()
-    
-    with file_mappings_lock:
-        if not FILE_MAPPINGS_PATH.exists():
-            return
-        
-        try:
-            mappings = json.loads(FILE_MAPPINGS_PATH.read_text())
-        except Exception:
-            return
-        
-        expired_ids = []
-        for file_id, file_info in mappings.items():
-            if current_time - file_info["created_at"] > 600:  # 10 minutes
-                expired_ids.append(file_id)
-                try:
-                    file_path = Path(file_info["path"])
-                    if file_path.exists():
-                        file_path.unlink()
-                except Exception:
-                    pass
-        
-        for file_id in expired_ids:
-            mappings.pop(file_id, None)
-        
-        FILE_MAPPINGS_PATH.write_text(json.dumps(mappings, indent=2))
 
 
 @app.get("/api/templates")
@@ -411,65 +331,36 @@ async def convert_to_pdf(
 ):
     """
     Convert any supported file to PDF.
-    
+
     Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
     """
-    import uuid
-    
-    # Cleanup old temp files before processing
-    cleanup_old_temp_files()
-    
+
     # Create unique temp folder for this request
+    import uuid
     request_id = str(uuid.uuid4())
     work_dir = TEMP_DIR / request_id
     work_dir.mkdir(parents=True, exist_ok=True)
-    
+
     try:
         # Save uploaded file
         input_path = work_dir / file.filename
         content = await file.read()
         await asyncio.to_thread(input_path.write_bytes, content)
-        
-        # Generate public URL for OnlyOffice
-        file_id = str(uuid.uuid4())
-        base_url = os.environ.get("PUBLIC_URL", "http://localhost:8000")
-        public_url = f"{base_url}/temp-files/{file_id}"
-        
-        # Register file in temp storage for OnlyOffice to access (file-based for multi-worker)
-        set_file_mapping(file_id, input_path, public_url)
-        
+
         # Define output path
         output_path = work_dir / (input_path.stem + ".pdf")
-        
-        # Convert to PDF with OnlyOffice semaphore to prevent concurrent requests
-        # OnlyOffice can only handle one conversion at a time
-        async with onlyoffice_semaphore:
-            print(f"[API] Starting conversion (queue position acquired)")
-            try:
-                # Pass public_url as environment variable so any_to_pdf can use it
-                original_env = os.environ.get("TEMP_FILE_URL")
-                os.environ["TEMP_FILE_URL"] = public_url
-                
-                try:
-                    await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
-                finally:
-                    # Restore original environment
-                    if original_env is None:
-                        os.environ.pop("TEMP_FILE_URL", None)
-                    else:
-                        os.environ["TEMP_FILE_URL"] = original_env
-                        
-                    # Don't remove from temp_files_storage yet - OnlyOffice still needs to download it
-                    # Auto-cleanup will remove files older than 5 minutes
-                    
-            except UnsupportedFormat as e:
-                raise HTTPException(status_code=400, detail=str(e))
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
-        
+
+        # Convert to PDF
+        try:
+            await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+        except UnsupportedFormat as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+
         if not output_path.exists():
             raise HTTPException(status_code=500, detail="Failed to create PDF file")
-        
+
         return FileResponse(
             path=output_path,
             filename=output_path.name,
@@ -478,7 +369,7 @@ async def convert_to_pdf(
                 "Content-Disposition": f'attachment; filename="{output_path.name}"'
             }
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:

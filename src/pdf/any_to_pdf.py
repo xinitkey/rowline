@@ -71,172 +71,59 @@ def html_to_pdf(input_path: str, output_path: str) -> None:
     pdfkit.from_file(input_path, output_path)
 
 
-def _convert_via_onlyoffice(input_path: str, output_path: str, onlyoffice_url: str = None, public_url: str = None) -> bool:
-    """
-    Convert document to PDF using OnlyOffice Document Server API.
-    Returns True if successful, False otherwise.
-    
-    Args:
-        input_path: Path to input file
-        output_path: Path for output PDF
-        onlyoffice_url: OnlyOffice server URL
-        public_url: Public URL where OnlyOffice can download the file
-    
-    OnlyOffice API Documentation: https://api.onlyoffice.com/editors/conversionapi
-    """
-    import requests
-    import json
-    import uuid
-    
-    # Get OnlyOffice URL from environment or use default
-    if onlyoffice_url is None:
-        onlyoffice_url = os.environ.get("ONLYOFFICE_URL", "http://localhost:8080")
-    
-    print(f"[OnlyOffice] Attempting conversion using: {onlyoffice_url}")
-    
-    # Check if OnlyOffice is available
-    try:
-        health_check = requests.get(f"{onlyoffice_url}/healthcheck", timeout=2)
-        if health_check.status_code != 200:
-            print(f"[OnlyOffice] ERROR: healthcheck failed: status {health_check.status_code}")
-            return False
-        print(f"[OnlyOffice] Healthcheck passed")
-    except requests.exceptions.RequestException as e:
-        print(f"[OnlyOffice] ERROR: healthcheck failed: {e}")
-        return False
-    
-    # Verify public URL is provided
-    if not public_url:
-        print(f"[OnlyOffice] ERROR: No public URL provided")
-        return False
-    
-    print(f"[OnlyOffice] Public file URL: {public_url}")
-    
-    # Get file extension
-    file_ext = os.path.splitext(input_path)[1].lower().lstrip(".")
-    
-    # Create unique key for this conversion
-    unique_key = str(uuid.uuid4())
-    
-    # Try both possible endpoints (older and newer versions of OnlyOffice)
-    endpoints_to_try = [
-        f"{onlyoffice_url}/ConvertService.ashx",
-        f"{onlyoffice_url}/converter"
-    ]
-    
-    for conversion_api_url in endpoints_to_try:
-        print(f"[OnlyOffice] Trying endpoint: {conversion_api_url}")
-        
-        # Get filename for title
-        filename = os.path.basename(input_path)
-        
-        request_data = {
-            "async": False,
-            "filetype": file_ext,
-            "key": unique_key,
-            "outputtype": "pdf",
-            "title": filename,
-            "url": public_url
-        }
-    
-    print(f"[OnlyOffice] Sending conversion request")
-    print(f"[OnlyOffice] Request data: {json.dumps(request_data, indent=2)}")
-    
-    try:
-        # Send conversion request with JSON payload
-        response = requests.post(
-            conversion_api_url,
-            json=request_data,
-            headers={"Content-Type": "application/json"},
-            timeout=300  # 5 minutes for large files
-        )
-        
-        print(f"[OnlyOffice] Response status: {response.status_code}")
-        print(f"[OnlyOffice] Response headers: {dict(response.headers)}")
-        
-        if response.status_code != 200:
-            print(f"[OnlyOffice] ERROR: returned status {response.status_code}")
-            print(f"Response text: {response.text[:500]}")
-            return False
-        
-        # Parse JSON response
-        try:
-            result = response.json()
-            print(f"[OnlyOffice] Response JSON: {json.dumps(result, indent=2)}")
-        except json.JSONDecodeError as e:
-            print(f"[OnlyOffice] ERROR: Failed to parse response as JSON: {e}")
-            print(f"Raw response: {response.text[:500]}")
-            return False
-        
-        if result.get("error"):
-            error_code = result.get("error")
-            print(f"[OnlyOffice] ERROR: error code: {error_code}")
-            return False
-        
-        # Get converted file URL or data
-        pdf_url = result.get("fileUrl") or result.get("url")
-        if pdf_url:
-            print(f"[OnlyOffice] Downloading PDF from: {pdf_url}")
-            
-            # Download PDF file
-            pdf_response = requests.get(pdf_url, timeout=120)  # 2 minutes for large PDFs
-            if pdf_response.status_code == 200:
-                with open(output_path, "wb") as f:
-                    f.write(pdf_response.content)
-                print(f"[OnlyOffice] SUCCESS: PDF saved: {output_path} ({len(pdf_response.content)} bytes)")
-                return True
-            else:
-                print(f"[OnlyOffice] ERROR: Failed to download PDF: {pdf_response.status_code}")
-                return False
-        
-        # Check if file data is returned directly
-        if result.get("fileData"):
-            print(f"[OnlyOffice] Saving PDF from direct response")
-            import base64
-            pdf_data = base64.b64decode(result.get("fileData"))
-            with open(output_path, "wb") as f:
-                f.write(pdf_data)
-            print(f"[OnlyOffice] SUCCESS: PDF saved: {output_path} ({len(pdf_data)} bytes)")
-            return True
-        
-        print(f"[OnlyOffice] ERROR: No PDF URL or data. Response keys: {result.keys()}")
-        return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"[OnlyOffice] ERROR: Request failed: {e}")
-        return False
-    except Exception as e:
-        print(f"[OnlyOffice] ERROR: Conversion error: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
 def docx_to_pdf(input_path: str, output_path: str) -> None:
     """
-    Convert DOCX to PDF using OnlyOffice Document Server API only.
-    OnlyOffice provides the best compatibility with Microsoft Office documents,
-    including correct text positioning in shapes and SmartArt.
-    
-    Requires OnlyOffice Document Server running on http://localhost:8080
-    or set ONLYOFFICE_URL environment variable.
+    Convert DOCX to PDF using LibreOffice.
+    LibreOffice provides good compatibility with Microsoft Office documents.
     """
+    import shutil
     
-    # Get public URL for the file from environment
-    public_url = os.environ.get("TEMP_FILE_URL")
+    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
     
-    # Use OnlyOffice Document Server API
-    onlyoffice_result = _convert_via_onlyoffice(input_path, output_path, public_url=public_url)
-    if onlyoffice_result:
-        print("[DOCX] SUCCESS: Converted via OnlyOffice Document Server")
-        return
+    # Find LibreOffice command
+    libreoffice_cmd = None
+    for cmd in ["libreoffice", "soffice"]:
+        if shutil.which(cmd):
+            libreoffice_cmd = cmd
+            break
     
-    # If OnlyOffice failed, raise an error
-    raise RuntimeError(
-        "DOCX conversion failed. OnlyOffice Document Server is not available. "
-        "Please ensure OnlyOffice is running on http://localhost:8080 or set ONLYOFFICE_URL environment variable. "
-        "Check logs with: sudo docker ps | grep onlyoffice"
-    )
+    if not libreoffice_cmd:
+        raise UnsupportedFormat(
+            "DOCX to PDF conversion requires LibreOffice. "
+            "Install with: sudo apt install libreoffice"
+        )
+    
+    try:
+        subprocess.run(
+            [
+                libreoffice_cmd,
+                "--headless",
+                "--convert-to", "pdf",
+                "--outdir", out_dir,
+                input_path
+            ],
+            capture_output=True,
+            timeout=120,
+            check=True,
+            env={
+                **os.environ,
+                "XDG_CONFIG_HOME": tempfile.gettempdir(),
+                "XDG_CACHE_HOME": tempfile.gettempdir()
+            }
+        )
+        
+        expected_pdf = os.path.join(out_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
+        if os.path.exists(expected_pdf):
+            if expected_pdf != output_path:
+                os.rename(expected_pdf, output_path)
+            return
+        
+        raise RuntimeError("LibreOffice did not create PDF file")
+        
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"DOCX conversion failed: {e}")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("DOCX conversion timed out")
 
 
 def excel_to_pdf(input_path: str, output_path: str) -> None:
