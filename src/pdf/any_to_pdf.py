@@ -101,6 +101,14 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     # Check if file is extremely large (>100MB)
     if file_size > 100 * 1024 * 1024:
         print(f"[DOCX] Warning: Large file detected ({file_size} bytes). Conversion may take a long time.")
+        try:
+            import psutil
+            import os
+            process = psutil.Process(os.getpid())
+            mem_before = process.memory_info().rss / 1024 / 1024  # MB
+            print(f"[DOCX] Memory usage before conversion: {mem_before:.1f} MB")
+        except ImportError:
+            print("[DOCX] psutil not available for memory monitoring")
     
     try:
         result = subprocess.run(
@@ -125,6 +133,15 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
         )
         
         print(f"[DOCX] LibreOffice conversion completed successfully")
+        
+        # Log memory usage for large files
+        if file_size > 100 * 1024 * 1024:
+            try:
+                mem_after = process.memory_info().rss / 1024 / 1024  # MB
+                print(f"[DOCX] Memory usage after conversion: {mem_after:.1f} MB")
+                print(f"[DOCX] Memory delta: {mem_after - mem_before:.1f} MB")
+            except NameError:
+                pass  # psutil not available
         
         # Log output safely (handle encoding issues)
         if result.stdout:
