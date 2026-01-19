@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Converter | Rowline</title>
+    <title>XLSX to XML Converter | Rowline</title>
     <script>
         // Prevent flash of wrong theme on page load
         (function() {
@@ -29,13 +29,13 @@
 
     <main>
         <article>
-            <h1>PDF Converter</h1>
-            <p class="subtitle">Convert various file formats to PDF quickly and easily.</p>
+            <h1>File Converter</h1>
+            <p class="subtitle">Convert your documents quickly and easily.</p>
 
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-container">
                     <div class="file-input-wrapper">
-                        <label for="pdfFile" class="btn-upload">
+                        <label for="xlsxFile" class="btn-upload">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -44,7 +44,7 @@
                             </svg>
                             Choose Files
                         </label>
-                        <input type="file" id="pdfFile" name="pdfFile" accept=".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md" required>
+                        <input type="file" id="xlsxFile" name="xlsxFile" accept=".xlsx" required>
                     </div> 
                 </div>
                 <!-- Hidden button to submit form programmatically if needed -->
@@ -53,7 +53,7 @@
 
             <section id="resultSection" style="display:none;">
                 <h2>Conversion Result</h2>
-                <a id="downloadLink" href="#" download="converted.pdf">Download PDF File</a>
+                <a id="downloadLink" href="#" download="converted.xml">Download XML File</a>
             </section>
 
             <section id="errorSection" style="display:none; color:red;">
@@ -63,14 +63,14 @@
 
             <section class="description-container">
                 <h2>Description</h2>
-                <p>This tool converts various file formats to PDF. Upload your file using the "Choose Files" button above, and the converted PDF file will be available for download. Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, PNG, BMP, TIFF, TXT, PY, LOG, MD</p>
+                <p>This tool converts XLSX files to XML format. Upload your XLSX file using the "Choose Files" button above, and the converted XML file will be available for download.</p>
             </section>
         </article>
     </main>
     
     <div id="footer-placeholder"></div>
     <script src="../js/components.js"></script>
-    <script src="../js/pdf-converter.js"></script>
+    <script src="../js/main.js"></script>
 </body>
 
 </html>

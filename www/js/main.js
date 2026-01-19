@@ -490,6 +490,11 @@ class XlsxConverter {
         info.style.justifyContent = 'space-between';
         info.style.maxWidth = '100%';
         info.style.gap = '10px';
+        info.style.marginTop = '1rem';
+        info.style.padding = '0.5rem 1rem';
+        info.style.backgroundColor = '#e3f2fd';
+        info.style.borderRadius = '999px';
+        info.style.fontSize = '0.9rem';
 
         info.innerHTML = `
             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -506,12 +511,12 @@ class XlsxConverter {
         btn.style.background = 'none';
         btn.style.border = 'none';
         btn.style.cursor = 'pointer';
-        btn.style.color = '#d32f2f';
+        btn.style.color = '#999';
         btn.style.fontSize = '1.2rem';
-        btn.style.fontWeight = 'bold';
-        btn.style.padding = '0 5px';
+        btn.style.padding = '0';
         btn.style.display = 'flex';
         btn.style.alignItems = 'center';
+        btn.style.flexShrink = '0';
 
         btn.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent bubbling
