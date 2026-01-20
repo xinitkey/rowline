@@ -65,12 +65,127 @@
                 <h2>Description</h2>
                 <p>This tool converts XLSX files to XML format. Upload your XLSX file using the "Choose Files" button above, and the converted XML file will be available for download.</p>
             </section>
+
+            <div class="features-grid">
+  <div class="description-container">
+    <div class="feature-header">
+      <!-- молния: Fast & Secure -->
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+           viewBox="0 0 24 24" stroke-width="1.5"
+           stroke="currentColor" class="feature-icon">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+      </svg>
+      <h3>Template manager</h3>
+    </div>
+
+    <p>
+        Download sample templates to structure your Excel files correctly
+    </p>
+
+    <form id="templateDownloadForm">
+        <label for="templateSelect" style="display: block; margin-bottom: 0.5rem; color: #555; font-size: 0.9rem;">
+            Select a template:
+        </label>
+        
+        <select id="templateSelect" class="template-select" style="margin-top: 0; margin-bottom: 1rem;">
+            <option value="../samples/FD-048BL - template.xlsx">FD-048BL - template.xlsx</option>
+        </select>
+
+        <button type="submit" class="btn-upload" style="width: 100%; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 10L12 15L17 10" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 15V3" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Download
+        </button>
+    </form>
+  </div>
+
+  <div class="description-container">
+    <div class="feature-header">
+      <!-- скобки кода: Developer Friendly -->
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+           viewBox="0 0 24 24" stroke-width="1.5"
+           stroke="currentColor" class="feature-icon">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M8.25 4.5 3 12l5.25 7.5M15.75 4.5 21 12l-5.25 7.5" />
+      </svg>
+      <h3>Developer Friendly</h3>
+    </div>
+    <p>Clean XML outputs that integrate seamlessly into your existing workflows and applications.</p>
+  </div>
+
         </article>
     </main>
     
     <div id="footer-placeholder"></div>
     <script src="../js/components.js"></script>
     <script src="../js/main.js"></script>
+    <script>
+        // Ensure DOM is ready before attaching event listener
+        function initTemplateDownload() {
+            const form = document.getElementById('templateDownloadForm');
+            const select = document.getElementById('templateSelect');
+            
+            if (!form) {
+                console.warn('Template download form not found');
+                return;
+            }
+            
+            if (!select) {
+                console.warn('Template select not found');
+                return;
+            }
+
+            console.log('Template select element found:', select);
+            console.log('Template select value:', select.value);
+            console.log('Template select options:', select.options.length);
+
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('Form submitted');
+                
+                const selectedValue = select.value;
+                console.log('Selected value:', selectedValue);
+                
+                // If select is empty, get first option
+                let fileUrl = selectedValue;
+                if (!fileUrl && select.options.length > 0) {
+                    fileUrl = select.options[0].value;
+                    console.log('Using first option:', fileUrl);
+                }
+                
+                console.log('Download URL:', fileUrl);
+                
+                if (fileUrl) {
+                    try {
+                        const link = document.createElement('a');
+                        link.href = fileUrl;
+                        link.download = fileUrl.split('/').pop();
+                        console.log('Download filename:', link.download);
+                        
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        console.log('Download triggered successfully');
+                    } catch (error) {
+                        console.error('Error during download:', error);
+                    }
+                } else {
+                    console.warn('No file URL found');
+                }
+            });
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initTemplateDownload);
+        } else {
+            initTemplateDownload();
+        }
+    </script>
 </body>
 
 </html>
