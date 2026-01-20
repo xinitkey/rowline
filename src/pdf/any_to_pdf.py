@@ -425,7 +425,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             ],
             capture_output=True,
             env=env_vars,
-            timeout=1800,  # Increased timeout for very large files (30 minutes)
+            timeout=7200,  # Increased timeout for very large files (2 hour
             check=True
         )
         
@@ -573,7 +573,7 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
-            timeout=1800,  # Increased timeout for very large files (30 minutes)
+            timeout=7200,  # Increased timeout for large files (2 hours)
             check=True,
             env=env_vars
         )
@@ -897,7 +897,7 @@ def excel_to_pdf_large_file(input_path: str, output_path: str, libreoffice_cmd: 
                     temp_input
                 ],
                 capture_output=True,
-                timeout=3600,  # 1 hour for very large files
+                timeout=7200,  # 2 hours for very large files
                 check=True,
                 env=env_vars
             )
