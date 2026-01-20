@@ -350,13 +350,13 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     if platform.system() == 'Linux':
         # Check common Linux installation paths
         possible_paths = [
+            "/usr/bin/libreoffice",  # Prefer libreoffice over soffice
             "/usr/bin/soffice",
-            "/usr/bin/libreoffice",
-            "/usr/local/bin/soffice",
             "/usr/local/bin/libreoffice",
+            "/usr/local/bin/soffice",
             "/opt/libreoffice/program/soffice",
-            "/snap/bin/soffice",  # Snap installation
-            "/snap/bin/libreoffice",
+            "/snap/bin/libreoffice",  # Snap installation
+            "/snap/bin/soffice",
         ]
         for path in possible_paths:
             if os.path.exists(path):
@@ -404,6 +404,14 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             print("[DOCX] psutil not available for memory monitoring")
     
     try:
+        # Set up environment for LibreOffice
+        env_vars = {
+            **os.environ,
+            "PATH": "/usr/bin:/bin:/usr/local/bin:/usr/sbin:/sbin:" + os.environ.get("PATH", ""),
+            "XDG_CONFIG_HOME": tempfile.gettempdir(),
+            "XDG_CACHE_HOME": tempfile.gettempdir(),
+        }
+        
         result = subprocess.run(
             [
                 libreoffice_cmd,
@@ -416,6 +424,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
+            env=env_vars,
             timeout=1800,  # Increased timeout for very large files (30 minutes)
             check=True,
             env={
@@ -485,13 +494,13 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
     if platform.system() == 'Linux':
         # Check common Linux installation paths
         possible_paths = [
+            "/usr/bin/libreoffice",  # Prefer libreoffice over soffice
             "/usr/bin/soffice",
-            "/usr/bin/libreoffice",
-            "/usr/local/bin/soffice",
             "/usr/local/bin/libreoffice",
+            "/usr/local/bin/soffice",
             "/opt/libreoffice/program/soffice",
-            "/snap/bin/soffice",  # Snap installation
-            "/snap/bin/libreoffice",
+            "/snap/bin/libreoffice",  # Snap installation
+            "/snap/bin/soffice",
         ]
         for path in possible_paths:
             if os.path.exists(path):
@@ -519,6 +528,7 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
     if not libreoffice_cmd:
         # Try alternative conversion method using openpyxl + reportlab
         try:
+            print(f"[Excel] LibreOffice not found, trying alternative method")
             return excel_to_pdf_alternative(input_path, output_path)
         except Exception as e:
             raise UnsupportedFormat(
@@ -526,6 +536,8 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 f"LibreOffice not found, alternative method failed: {e}. "
                 f"Install with: sudo apt install libreoffice"
             )
+    
+    print(f"[Excel] Using LibreOffice at: {libreoffice_cmd}")
     
     # Log file size for debugging
     file_size = os.path.getsize(input_path)
@@ -540,6 +552,7 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
         # Optimize LibreOffice for performance
         env_vars = {
             **os.environ,
+            "PATH": "/usr/bin:/bin:/usr/local/bin:/usr/sbin:/sbin:" + os.environ.get("PATH", ""),
             "XDG_CONFIG_HOME": tempfile.gettempdir(),
             "XDG_CACHE_HOME": tempfile.gettempdir(),
             # Performance optimizations
