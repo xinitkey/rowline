@@ -426,12 +426,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
             capture_output=True,
             env=env_vars,
             timeout=1800,  # Increased timeout for very large files (30 minutes)
-            check=True,
-            env={
-                **os.environ,
-                "XDG_CONFIG_HOME": tempfile.gettempdir(),
-                "XDG_CACHE_HOME": tempfile.gettempdir()
-            }
+            check=True
         )
         
         print(f"[DOCX] LibreOffice conversion completed successfully")
