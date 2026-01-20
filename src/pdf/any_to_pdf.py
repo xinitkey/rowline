@@ -38,8 +38,24 @@ class ConversionProgress:
             return self.current_step, self.status
 
 
-# Global thread pool for CPU-bound operations
-_cpu_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="pdf-convert")
+# Global thread pool for CPU-bound operations - dynamically sized
+import os
+_cpu_executor = None
+
+def get_cpu_executor():
+    """Get or create CPU executor with optimal thread count."""
+    global _cpu_executor
+    if _cpu_executor is None:
+        # Use system CPU count for optimal performance
+        cpu_count = os.cpu_count() or 4
+        # For CPU-bound operations like PDF conversion, use CPU count
+        max_workers = max(cpu_count, 8)  # At least 8 threads
+        _cpu_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=max_workers, 
+            thread_name_prefix="pdf-convert"
+        )
+        print(f"[PDF] Initialized CPU thread pool with {max_workers} workers")
+    return _cpu_executor
 
 
 async def any_to_pdf_async(input_path: str, output_path: str | None = None, progress_callback: Optional[ConversionProgress] = None) -> str:
@@ -113,7 +129,7 @@ async def html_to_pdf_async(input_path: str, output_path: str, progress: Optiona
     def _convert():
         return html_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.8, "HTML conversion completed")
@@ -129,7 +145,7 @@ async def xml_to_pdf_async(input_path: str, output_path: str, progress: Optional
     def _convert():
         return xml_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.9, "XML conversion completed")
@@ -145,7 +161,7 @@ async def docx_to_pdf_async(input_path: str, output_path: str, progress: Optiona
     def _convert():
         return docx_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.7, "DOCX conversion completed")
@@ -161,7 +177,7 @@ async def excel_to_pdf_async(input_path: str, output_path: str, progress: Option
     def _convert():
         return excel_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.8, "Excel conversion completed")
@@ -177,7 +193,7 @@ async def image_to_pdf_async(input_path: str, output_path: str, progress: Option
     def _convert():
         return image_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.9, "Image conversion completed")
@@ -193,7 +209,7 @@ async def text_to_pdf_async(input_path: str, output_path: str, progress: Optiona
     def _convert():
         return text_to_pdf_sync(input_path, output_path)
 
-    await asyncio.get_event_loop().run_in_executor(_cpu_executor, _convert)
+    await asyncio.get_event_loop().run_in_executor(get_cpu_executor(), _convert)
 
     if progress:
         progress.update(0.9, "Text conversion completed")
@@ -422,12 +438,16 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
 
 def excel_to_pdf(input_path: str, output_path: str) -> None:
     """
-    Convert Excel (XLSX/XLS) to PDF using LibreOffice.
+    Convert Excel (XLSX/XLS) to PDF using LibreOffice with optimizations.
+    Falls back to alternative methods for better performance.
     """
     import shutil
     import os
     
     out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+    
+    # Get CPU count for optimizations
+    cpu_count = os.cpu_count() or 4
     
     # Find LibreOffice command
     libreoffice_cmd = None
@@ -437,20 +457,39 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
             break
     
     if not libreoffice_cmd:
-        raise UnsupportedFormat(
-            "Excel to PDF conversion requires LibreOffice. "
-            "Install with: sudo apt install libreoffice"
-        )
+        # Try alternative conversion method using openpyxl + reportlab
+        try:
+            return excel_to_pdf_alternative(input_path, output_path)
+        except Exception as e:
+            raise UnsupportedFormat(
+                f"Excel to PDF conversion requires LibreOffice or alternative libraries. "
+                f"LibreOffice not found, alternative method failed: {e}. "
+                f"Install with: sudo apt install libreoffice"
+            )
     
     # Log file size for debugging
     file_size = os.path.getsize(input_path)
     print(f"[Excel] Converting file: {os.path.basename(input_path)} ({file_size} bytes)")
     
-    # Check if file is extremely large (>100MB)
+    # Check if file is extremely large (>100MB) - use special handling
     if file_size > 100 * 1024 * 1024:
-        print(f"[Excel] Warning: Large file detected ({file_size} bytes). Conversion may take a long time.")
+        print(f"[Excel] Warning: Large file detected ({file_size} bytes). Using optimized conversion.")
+        return excel_to_pdf_large_file(input_path, output_path, libreoffice_cmd, cpu_count)
     
     try:
+        # Optimize LibreOffice for performance
+        env_vars = {
+            **os.environ,
+            "XDG_CONFIG_HOME": tempfile.gettempdir(),
+            "XDG_CACHE_HOME": tempfile.gettempdir(),
+            # Performance optimizations
+            "SAL_USE_VCLPLUGIN": "svp",  # Use virtual device for headless
+            "OOO_EXIT_POST_STARTUP": "1",  # Exit after startup
+            # Memory and threading optimizations
+            "SAL_MAXTHREADS": str(min(cpu_count * 2, 16)),  # Limit threads but allow parallelism
+            "PARALLELISM_MAX": str(min(cpu_count, 8)),  # Allow parallel processing
+        }
+        
         result = subprocess.run(
             [
                 libreoffice_cmd,
@@ -460,16 +499,15 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 "--nodefault",  # Don't load default modules
                 "--convert-to", "pdf:calc_pdf_Export",
                 "--outdir", out_dir,
+                # Performance flags
+                "--norestore",  # Don't restore previous session
+                "--nolockcheck",  # Skip lock file checks
                 input_path
             ],
             capture_output=True,
             timeout=1800,  # Increased timeout for very large files (30 minutes)
             check=True,
-            env={
-                **os.environ,
-                "XDG_CONFIG_HOME": tempfile.gettempdir(),
-                "XDG_CACHE_HOME": tempfile.gettempdir()
-            }
+            env=env_vars
         )
         
         print(f"[Excel] LibreOffice conversion completed successfully")
@@ -740,3 +778,141 @@ def merge_pdf_parallel(input_paths: list[str], output_path: str) -> str:
         writer.write(f)
 
     return output_path
+
+
+def excel_to_pdf_large_file(input_path: str, output_path: str, libreoffice_cmd: str, cpu_count: int) -> None:
+    """
+    Optimized conversion for large Excel files using LibreOffice with performance tuning.
+    """
+    import os
+    import tempfile
+    
+    out_dir = os.path.dirname(os.path.abspath(output_path)) or "."
+    
+    # Create temporary working directory to avoid conflicts
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Copy file to temp directory for processing
+        temp_input = os.path.join(temp_dir, os.path.basename(input_path))
+        import shutil
+        shutil.copy2(input_path, temp_input)
+        
+        try:
+            # Optimize LibreOffice for performance with large files
+            env_vars = {
+                **os.environ,
+                "XDG_CONFIG_HOME": temp_dir,
+                "XDG_CACHE_HOME": temp_dir,
+                # Performance optimizations for large files
+                "SAL_USE_VCLPLUGIN": "svp",  # Use virtual device for headless
+                "OOO_EXIT_POST_STARTUP": "1",  # Exit after startup
+                # Memory and threading optimizations
+                "SAL_MAXTHREADS": str(min(cpu_count * 2, 32)),  # More threads for large files
+                "PARALLELISM_MAX": str(min(cpu_count, 16)),  # Allow parallel processing
+                # Disable unnecessary features for speed
+                "DISABLE_OPENCL": "1",  # Disable OpenCL to avoid GPU issues
+                "SAL_DISABLE_FLOATGRABBER": "1",  # Disable floating point optimizations
+            }
+            
+            result = subprocess.run(
+                [
+                    libreoffice_cmd,
+                    "--headless",
+                    "--invisible",
+                    "--nocrashreport",
+                    "--nodefault",
+                    "--convert-to", "pdf:calc_pdf_Export",
+                    "--outdir", temp_dir,
+                    # Performance flags for large files
+                    "--norestore",
+                    "--nolockcheck",
+                    "--quickstart=no",  # Disable quickstart for better performance
+                    temp_input
+                ],
+                capture_output=True,
+                timeout=3600,  # 1 hour for very large files
+                check=True,
+                env=env_vars
+            )
+            
+            print(f"[Excel-Large] LibreOffice conversion completed successfully")
+            
+            # Find and move the output file
+            expected_pdf = os.path.join(temp_dir, os.path.splitext(os.path.basename(input_path))[0] + ".pdf")
+            if os.path.exists(expected_pdf):
+                shutil.move(expected_pdf, output_path)
+                return
+            
+            raise RuntimeError("LibreOffice did not create PDF file for large Excel")
+            
+        except subprocess.CalledProcessError as e:
+            error_msg = f"LibreOffice conversion failed: {e}"
+            if hasattr(e, 'stdout') and e.stdout:
+                safe_stdout = e.stdout.decode('utf-8', errors='replace')
+                error_msg += f" stdout: {safe_stdout}"
+            if hasattr(e, 'stderr') and e.stderr:
+                safe_stderr = e.stderr.decode('utf-8', errors='replace')
+                error_msg += f" stderr: {safe_stderr}"
+            raise RuntimeError(error_msg)
+
+
+def excel_to_pdf_alternative(input_path: str, output_path: str) -> None:
+    """
+    Alternative Excel to PDF conversion using Python libraries (fallback method).
+    Less accurate but faster for simple spreadsheets.
+    """
+    try:
+        from openpyxl import load_workbook
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+        from reportlab.lib import colors
+        import os
+        
+        print(f"[Excel-Alt] Using alternative conversion method for {os.path.basename(input_path)}")
+        
+        # Load workbook
+        wb = load_workbook(input_path, read_only=True, data_only=True)
+        
+        # Create PDF
+        doc = SimpleDocTemplate(output_path, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            
+            # Add sheet title
+            title = Paragraph(f"Sheet: {sheet_name}", styles['Heading1'])
+            elements.append(title)
+            
+            # Extract data
+            data = []
+            for row in ws.iter_rows(values_only=True):
+                # Convert all values to strings and handle None
+                row_data = [str(cell) if cell is not None else "" for cell in row]
+                if any(row_data):  # Skip empty rows
+                    data.append(row_data)
+            
+            if data:
+                # Create table
+                table = Table(data)
+                table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, 0), 14),
+                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                elements.append(table)
+        
+        doc.build(elements)
+        print(f"[Excel-Alt] Alternative conversion completed: {os.path.basename(output_path)}")
+        
+    except ImportError as e:
+        raise UnsupportedFormat(f"Alternative Excel conversion requires openpyxl and reportlab: {e}")
+    except Exception as e:
+        raise RuntimeError(f"Alternative Excel conversion failed: {e}")

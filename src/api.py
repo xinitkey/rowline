@@ -44,14 +44,17 @@ MAX_WORKERS = int(os.getenv('MAX_WORKERS', max(cpu_count * (8 if system != 'Wind
 PROCESS_POOL_SIZE = int(os.getenv('PROCESS_POOL_SIZE', min(cpu_count, 16 if system != 'Windows' else 4)))
 MAX_CONCURRENT_OPERATIONS = int(os.getenv('MAX_CONCURRENT_OPERATIONS', min(cpu_count * (4 if system != 'Windows' else 2), 32 if system != 'Windows' else 8)))
 
+# Special limits for Excel conversions (more restrictive due to high CPU usage)
+EXCEL_MAX_CONCURRENT = int(os.getenv('EXCEL_MAX_CONCURRENT', min(cpu_count, 4 if system != 'Windows' else 2)))
+
 if system == 'Windows':
     # Windows specific optimizations
     print(f"[CONFIG] Windows detected - using thread-based parallelism")
-    print(f"[CONFIG] Thread pool: {MAX_WORKERS}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}")
+    print(f"[CONFIG] Thread pool: {MAX_WORKERS}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}, Excel ops: {EXCEL_MAX_CONCURRENT}")
 else:
     # Linux/Unix full power mode
     print(f"[CONFIG] {system} detected - using full multiprocessing power")
-    print(f"[CONFIG] Workers: auto-scaled, Thread pool: {MAX_WORKERS}, Process pool: {PROCESS_POOL_SIZE}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}")
+    print(f"[CONFIG] Workers: auto-scaled, Thread pool: {MAX_WORKERS}, Process pool: {PROCESS_POOL_SIZE}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}, Excel ops: {EXCEL_MAX_CONCURRENT}")
 
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix="pdf-worker")
 
@@ -66,6 +69,7 @@ except Exception as e:
 
 # Semaphore to limit concurrent heavy operations
 operation_semaphore = asyncio.Semaphore(MAX_CONCURRENT_OPERATIONS)
+excel_semaphore = asyncio.Semaphore(EXCEL_MAX_CONCURRENT)
 
 # Global dictionary to track conversion progress
 _conversion_progress: dict[str, ConversionProgress] = {}
@@ -455,8 +459,14 @@ async def convert_to_pdf(
 
     Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
     """
-    # Limit concurrent operations
-    async with operation_semaphore:
+    # Determine file type and choose appropriate semaphore
+    filename_lower = file.filename.lower()
+    is_excel = filename_lower.endswith(('.xlsx', '.xls'))
+    
+    # Use more restrictive semaphore for Excel files due to high CPU usage
+    semaphore = excel_semaphore if is_excel else operation_semaphore
+    
+    async with semaphore:
         # Create unique temp folder for this request
         import uuid
         request_id = str(uuid.uuid4())
