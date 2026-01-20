@@ -67,8 +67,78 @@ def any_to_pdf(input_path: str, output_path: str | None = None) -> str:
 
 
 def html_to_pdf(input_path: str, output_path: str) -> None:
-    # pdfkit использует wkhtmltopdf под капотом [web:1]
-    pdfkit.from_file(input_path, output_path)
+    """
+    Convert HTML to PDF using pdfkit (wkhtmltopdf).
+    Configured for local file conversion with proper options.
+    """
+    import os
+    import tempfile
+    import subprocess
+    
+    # Get the directory of the input file for resolving relative paths
+    input_dir = os.path.dirname(os.path.abspath(input_path))
+    
+    # Set up environment for wkhtmltopdf
+    env = os.environ.copy()
+    env['XDG_RUNTIME_DIR'] = tempfile.gettempdir()
+    env['QT_QPA_PLATFORM'] = 'offscreen'  # For headless operation
+    
+    # Try using wkhtmltopdf directly with proper environment
+    wkhtmltopdf_path = None
+    for path in ['wkhtmltopdf', '/usr/bin/wkhtmltopdf', '/usr/local/bin/wkhtmltopdf']:
+        try:
+            result = subprocess.run([path, '--version'], capture_output=True, env=env, timeout=10)
+            if result.returncode == 0:
+                wkhtmltopdf_path = path
+                break
+        except (subprocess.SubprocessError, FileNotFoundError):
+            continue
+    
+    if wkhtmltopdf_path:
+        # Use wkhtmltopdf directly
+        cmd = [
+            wkhtmltopdf_path,
+            '--page-size', 'A4',
+            '--margin-top', '0.75in',
+            '--margin-right', '0.75in', 
+            '--margin-bottom', '0.75in',
+            '--margin-left', '0.75in',
+            '--encoding', 'UTF-8',
+            '--enable-local-file-access',
+            '--disable-external-links',
+            '--disable-internal-links',
+            '--load-error-handling', 'ignore',
+            '--load-media-error-handling', 'ignore',
+            input_path,
+            output_path
+        ]
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', 
+                                  env=env, timeout=60, check=True)
+            print(f"[HTML] wkhtmltopdf conversion completed successfully")
+            return
+        except subprocess.CalledProcessError as e:
+            print(f"[HTML] wkhtmltopdf failed: {e}")
+        except subprocess.TimeoutExpired:
+            print(f"[HTML] wkhtmltopdf timed out")
+    
+    # Fallback to pdfkit with minimal options
+    print(f"[HTML] Using pdfkit fallback...")
+    options = {
+        'page-size': 'A4',
+        'encoding': 'UTF-8',
+        'disable-external-links': None,
+        'disable-internal-links': None,
+        'load-error-handling': 'ignore',
+        'load-media-error-handling': 'ignore',
+    }
+    
+    try:
+        pdfkit.from_file(input_path, output_path, options=options)
+    except Exception as e:
+        print(f"[HTML] pdfkit fallback also failed: {e}")
+        raise RuntimeError(f"HTML to PDF conversion failed: {e}")
 
 
 def docx_to_pdf(input_path: str, output_path: str) -> None:
