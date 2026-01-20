@@ -92,6 +92,7 @@ python main.py --host 127.0.0.1 --port 8000 --workers 16
 - **Async I/O**: Asynchronous file read/write operations
 - **Semaphore**: Concurrent heavy operation limiting
 - **Background cleanup**: Automatic temporary file cleanup
+- **Extended timeouts**: 30 minutes for large file processing, 1 hour for batch operations
 
 ## 📖 Usage
 

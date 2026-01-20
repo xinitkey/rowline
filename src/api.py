@@ -487,7 +487,10 @@ async def convert_to_pdf(
 
             # Convert to PDF asynchronously with progress tracking
             try:
-                await any_to_pdf_async(str(input_path), str(output_path), progress)
+                await asyncio.wait_for(
+                    any_to_pdf_async(str(input_path), str(output_path), progress),
+                    timeout=2000  # 2000 seconds (33 minutes) timeout for API level
+                )
             except UnsupportedFormat as e:
                 # Clean up progress tracking
                 _conversion_progress.pop(request_id, None)
@@ -593,7 +596,10 @@ async def batch_convert_to_pdf(
             # Convert all files concurrently
             progress.update(0, f"Converting {len(files)} files concurrently...")
             try:
-                await asyncio.gather(*conversion_tasks, return_exceptions=True)
+                await asyncio.wait_for(
+                    asyncio.gather(*conversion_tasks, return_exceptions=True),
+                    timeout=3600  # 3600 seconds (1 hour) timeout for batch operations
+                )
             except Exception as e:
                 _conversion_progress.pop(request_id, None)
                 safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')

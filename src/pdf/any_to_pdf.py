@@ -370,7 +370,7 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
-            timeout=600,  # Increased timeout for very large files (10 minutes)
+            timeout=1800,  # Increased timeout for very large files (30 minutes)
             check=True,
             env={
                 **os.environ,
@@ -463,7 +463,7 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
                 input_path
             ],
             capture_output=True,
-            timeout=600,  # Increased timeout for very large files (10 minutes)
+            timeout=1800,  # Increased timeout for very large files (30 minutes)
             check=True,
             env={
                 **os.environ,
