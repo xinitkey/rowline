@@ -542,22 +542,32 @@ class XlsxConverter {
                 throw new Error(errorData.detail || `Server error: ${response.status}`);
             }
 
-            // Get filename from Content-Disposition header
-            const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'converted.xml';
-            if (contentDisposition) {
-                const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
-                if (match) {
-                    filename = match[1];
+            // Check if response is JSON (multiple files) or blob (single file)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                // Multiple files - show download links
+                const data = await response.json();
+                this.showMultipleResults(data.files, data.message);
+                console.log(`✓ Conversion complete: ${data.message}`);
+            } else {
+                // Single file - direct download
+                // Get filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'converted.xml';
+                if (contentDisposition) {
+                    const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+                    if (match) {
+                        filename = match[1];
+                    }
                 }
+
+                // Create blob and download link
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                this.showResult(url, filename);
+                console.log(`✓ Conversion complete: ${filename}`);
             }
-
-            // Create blob and download link
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-
-            this.showResult(url, filename);
-            console.log(`✓ Conversion complete: ${filename}`);
 
         } catch (error) {
             console.error('Conversion error:', error);
@@ -608,6 +618,52 @@ class XlsxConverter {
             this.downloadLink.textContent = `Download ${filename}`;
             this.downloadLink.className = 'btn-upload';
             this.downloadLink.style.display = 'inline-flex';
+        }
+    }
+
+    /**
+     * Show multiple conversion results
+     */
+    showMultipleResults(files, message) {
+        if (this.resultSection) {
+            this.resultSection.style.display = 'block';
+        }
+        if (this.downloadLink) {
+            // Clear existing content
+            this.downloadLink.innerHTML = '';
+            
+            // Add message
+            const messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.style.marginBottom = '1rem';
+            messageDiv.style.fontWeight = 'bold';
+            this.downloadLink.appendChild(messageDiv);
+            
+            // Add file list
+            const fileList = document.createElement('div');
+            fileList.className = 'file-list';
+            
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const link = document.createElement('a');
+                link.href = file.url;
+                link.textContent = file.filename;
+                link.className = 'download-link';
+                link.target = '_blank';
+                
+                const size = document.createElement('span');
+                size.textContent = ` (${this.formatFileSize(file.size)})`;
+                size.style.color = '#666';
+                
+                fileItem.appendChild(link);
+                fileItem.appendChild(size);
+                fileList.appendChild(fileItem);
+            });
+            
+            this.downloadLink.appendChild(fileList);
+            this.downloadLink.style.display = 'block';
         }
     }
 

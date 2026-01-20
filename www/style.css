@@ -466,3 +466,46 @@ footer a:hover {
 h3 {
   margin: 0;             
 }
+
+/* File list styles for multiple downloads */
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+[data-theme='dark'] .file-item {
+  background: #2d3748;
+  border-color: #4a5568;
+}
+
+.download-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+  flex: 1;
+}
+
+.download-link:hover {
+  text-decoration: underline;
+  color: #0056b3;
+}
+
+[data-theme='dark'] .download-link {
+  color: #63b3ed;
+}
+
+[data-theme='dark'] .download-link:hover {
+  color: #4299e1;
+}

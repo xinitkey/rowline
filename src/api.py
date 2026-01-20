@@ -5,7 +5,6 @@ Provides REST API for file conversion.
 """
 
 import io
-import zipfile
 import tempfile
 import shutil
 import asyncio
@@ -266,29 +265,49 @@ async def convert_xlsx_to_xml(
                 }
             )
         
-        # If multiple files - create ZIP archive (also in separate thread)
-        zip_path = work_dir / f"{input_path.stem}_converted.zip"
-        
-        def create_zip():
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-                for result_file in result_files:
-                    zf.write(result_file, result_file.name)
-        
-        await asyncio.to_thread(create_zip)
-        
-        # Sanitize ZIP filename for HTTP headers (ASCII only)
-        safe_zip_filename = "".join(c for c in zip_path.name if ord(c) < 128)
-        if not safe_zip_filename:
-            safe_zip_filename = "results.zip"
-        
-        return FileResponse(
-            path=zip_path,
-            filename=safe_zip_filename,
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f'attachment; filename="{safe_zip_filename}"'
+        # If multiple files - return JSON with download links
+        if len(result_files) > 1:
+            import uuid
+            import json
+            
+            # Create unique session ID for this convert operation
+            session_id = str(uuid.uuid4())
+            session_dir = TEMP_DIR / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Move files to session directory and create download links
+            file_links = []
+            for result_file in result_files:
+                filename = result_file.name
+                session_file = session_dir / filename
+                
+                # Copy file to session directory
+                import shutil
+                shutil.copy2(result_file, session_file)
+                
+                file_links.append({
+                    "filename": filename,
+                    "url": f"/temp-files/{session_id}/{filename}",
+                    "size": session_file.stat().st_size
+                })
+            
+            # Store session info (in a real app, use database/redis)
+            session_info = {
+                "files": file_links,
+                "created": asyncio.get_event_loop().time(),
+                "session_id": session_id
             }
-        )
+            
+            # For demo, store in memory (in production use persistent storage)
+            if not hasattr(convert_xlsx_to_xml, 'sessions'):
+                convert_xlsx_to_xml.sessions = {}
+            convert_xlsx_to_xml.sessions[session_id] = session_info
+            
+            return {
+                "message": f"Converted to {len(file_links)} XML files",
+                "files": file_links,
+                "session_id": session_id
+            }
         
     except HTTPException:
         raise
@@ -475,6 +494,41 @@ async def serve_split_file(session_id: str, filename: str):
         path=file_path,
         filename=filename,
         media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@app.get("/temp-files/{session_id}/{filename}")
+async def serve_convert_file(session_id: str, filename: str):
+    """Serve individual converted XML files."""
+    # Check if session exists
+    if not hasattr(serve_convert_file, 'sessions'):
+        serve_convert_file.sessions = getattr(convert_xlsx_to_xml, 'sessions', {})
+    
+    session_info = serve_convert_file.sessions.get(session_id)
+    if not session_info:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    # Find the file in session
+    file_info = None
+    for f in session_info['files']:
+        if f['filename'] == filename:
+            file_info = f
+            break
+    
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_path = TEMP_DIR / session_id / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/xml",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"'
         }
