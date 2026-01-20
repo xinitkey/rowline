@@ -501,14 +501,24 @@ async def split_pdf_endpoint(
         # If multiple files, create ZIP archive
         if len(output_files) > 1:
             zip_path = work_dir / "split_pages.zip"
-            import shutil
+            import zipfile
+            import time
             
-            # Create ZIP using shutil for better reliability
-            base_name = str(work_dir / "split_pages")
-            shutil.make_archive(base_name, 'zip', work_dir, 'page_*.pdf')
+            # Wait for files to be fully written
+            time.sleep(1.0)
             
-            if not zip_path.exists():
-                raise HTTPException(status_code=500, detail="Failed to create ZIP archive")
+            # Create ZIP manually for better control
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for pdf_file_path in output_files:
+                    if os.path.exists(pdf_file_path) and os.path.getsize(pdf_file_path) > 0:
+                        # Add with just filename, not full path
+                        zipf.write(pdf_file_path, os.path.basename(pdf_file_path))
+                    else:
+                        raise HTTPException(status_code=500, detail=f"Output file missing or empty: {os.path.basename(pdf_file_path)}")
+            
+            # Verify ZIP was created and has content
+            if not zip_path.exists() or zip_path.stat().st_size == 0:
+                raise HTTPException(status_code=500, detail="Failed to create valid ZIP archive")
             
             return FileResponse(
                 path=zip_path,
