@@ -7,6 +7,7 @@ import pdfkit          # html -> pdf [web:1]
 from docx2pdf import convert as docx2pdf_convert  # docx -> pdf [web:9]
 import img2pdf         # images -> pdf [web:10]
 from PIL import Image  # img2pdf зависит от Pillow [web:10]
+from pypdf import PdfReader, PdfWriter
 
 
 class UnsupportedFormat(Exception):
@@ -412,3 +413,67 @@ def text_to_pdf(input_path: str, output_path: str) -> None:
         pdfkit.from_file(tmp_html_path, output_path)
     finally:
         os.remove(tmp_html_path)
+
+
+def split_pdf(input_path: str, output_dir: str, pages: list[int] | None = None) -> list[str]:
+    """
+    Split PDF into multiple files.
+    
+    Args:
+        input_path: Path to input PDF
+        output_dir: Directory to save split files
+        pages: List of page numbers to extract (1-based), if None - split all pages individually
+    
+    Returns:
+        List of output file paths
+    """
+    reader = PdfReader(input_path)
+    total_pages = len(reader.pages)
+    
+    if pages is None:
+        # Split each page into separate file
+        output_files = []
+        for i in range(total_pages):
+            writer = PdfWriter()
+            writer.add_page(reader.pages[i])
+            
+            output_path = os.path.join(output_dir, f"page_{i+1:03d}.pdf")
+            with open(output_path, "wb") as f:
+                writer.write(f)
+            output_files.append(output_path)
+        return output_files
+    else:
+        # Extract specific pages into one file
+        writer = PdfWriter()
+        for page_num in pages:
+            if 1 <= page_num <= total_pages:
+                writer.add_page(reader.pages[page_num - 1])
+        
+        output_path = os.path.join(output_dir, "extracted_pages.pdf")
+        with open(output_path, "wb") as f:
+            writer.write(f)
+        return [output_path]
+
+
+def merge_pdf(input_paths: list[str], output_path: str) -> str:
+    """
+    Merge multiple PDF files into one.
+    
+    Args:
+        input_paths: List of PDF file paths to merge
+        output_path: Path for merged output file
+    
+    Returns:
+        Output file path
+    """
+    writer = PdfWriter()
+    
+    for pdf_path in input_paths:
+        reader = PdfReader(pdf_path)
+        for page in reader.pages:
+            writer.add_page(page)
+    
+    with open(output_path, "wb") as f:
+        writer.write(f)
+    
+    return output_path

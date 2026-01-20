@@ -6,15 +6,78 @@
 document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('uploadForm');
     const pdfFile = document.getElementById('pdfFile');
+    const pdfFiles = document.getElementById('pdfFiles');
     const uploadContainer = document.querySelector('.upload-container');
     const resultSection = document.getElementById('resultSection');
     const errorSection = document.getElementById('errorSection');
     const downloadLink = document.getElementById('downloadLink');
     const errorMessage = document.getElementById('errorMessage');
+    const operationRadios = document.querySelectorAll('input[name="operation"]');
+    const splitOptions = document.getElementById('splitOptions');
+    const pagesInput = document.getElementById('pages');
 
     /**
-     * Format file size to human readable format
+     * Update UI based on selected operation
      */
+    function updateOperationUI() {
+        const operation = document.querySelector('input[name="operation"]:checked').value;
+        const label = uploadContainer.querySelector('.btn-upload');
+        const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
+        const otherInput = operation === 'merge' ? pdfFile : pdfFiles;
+        
+        // Update file input
+        otherInput.style.display = 'none';
+        fileInput.style.display = '';
+        fileInput.required = true;
+        otherInput.required = false;
+        
+        // Update label and accept attribute
+        if (operation === 'convert') {
+            label.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Choose Files
+            `;
+            fileInput.accept = ".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md";
+            splitOptions.style.display = 'none';
+        } else if (operation === 'split') {
+            label.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Choose PDF File
+            `;
+            fileInput.accept = ".pdf";
+            splitOptions.style.display = 'block';
+        } else if (operation === 'merge') {
+            label.innerHTML = `
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Choose PDF Files
+            `;
+            fileInput.accept = ".pdf";
+            splitOptions.style.display = 'none';
+        }
+        
+        // Clear current file selection
+        const existing = document.getElementById('fileInfo');
+        if (existing) existing.remove();
+        const convertBtn = document.getElementById('convertPdfBtn');
+        if (convertBtn) convertBtn.remove();
+        resultSection.style.display = 'none';
+        hideError();
+    }
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;

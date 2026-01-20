@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat
+from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat, split_pdf, merge_pdf
 
 # Path to static files (frontend)
 STATIC_DIR = Path(__file__).parent.parent / "www"
@@ -396,6 +396,157 @@ async def convert_to_pdf(
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f'attachment; filename="{safe_filename}"'
+            }
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/split-pdf")
+async def split_pdf_endpoint(
+    file: UploadFile = File(..., description="PDF file to split"),
+    pages: str = Form(default="", description="Comma-separated page numbers to extract (1-based), empty for split all pages")
+):
+    """
+    Split PDF file into multiple files.
+
+    - **file**: PDF file to split
+    - **pages**: Comma-separated page numbers (e.g., "1,3,5"), empty to split each page individually
+    """
+    # Create unique temp folder for this request
+    import uuid
+    request_id = str(uuid.uuid4())
+    work_dir = TEMP_DIR / request_id
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Save uploaded file
+        input_path = work_dir / file.filename
+        content = await file.read()
+        
+        # Check file size (limit to 500MB)
+        file_size = len(content)
+        if file_size > 500 * 1024 * 1024:  # 500MB limit
+            raise HTTPException(
+                status_code=413, 
+                detail="File too large. Maximum size is 500MB."
+            )
+        
+        await asyncio.to_thread(input_path.write_bytes, content)
+
+        # Parse pages
+        page_list = None
+        if pages.strip():
+            try:
+                page_list = [int(p.strip()) for p in pages.split(",") if p.strip()]
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid page numbers format")
+
+        # Split PDF
+        try:
+            output_files = await asyncio.to_thread(split_pdf, str(input_path), str(work_dir), page_list)
+        except Exception as e:
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=500, detail=f"Split failed: {safe_detail}")
+
+        if not output_files:
+            raise HTTPException(status_code=500, detail="No output files generated")
+
+        # If multiple files, create ZIP archive
+        if len(output_files) > 1:
+            zip_path = work_dir / "split_pages.zip"
+            import zipfile
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                for pdf_file in output_files:
+                    zipf.write(pdf_file, os.path.basename(pdf_file))
+            
+            return FileResponse(
+                path=zip_path,
+                filename="split_pages.zip",
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": 'attachment; filename="split_pages.zip"'
+                }
+            )
+        else:
+            # Single file
+            output_path = Path(output_files[0])
+            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "split.pdf"
+
+            return FileResponse(
+                path=output_path,
+                filename=safe_filename,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                }
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/merge-pdf")
+async def merge_pdf_endpoint(
+    files: list[UploadFile] = File(..., description="PDF files to merge")
+):
+    """
+    Merge multiple PDF files into one.
+
+    - **files**: List of PDF files to merge
+    """
+    if len(files) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 PDF files required for merging")
+
+    # Create unique temp folder for this request
+    import uuid
+    request_id = str(uuid.uuid4())
+    work_dir = TEMP_DIR / request_id
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        input_paths = []
+        
+        for file in files:
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
+            
+            # Check file size (limit to 500MB total)
+            file_size = len(content)
+            if file_size > 500 * 1024 * 1024:  # 500MB limit per file
+                raise HTTPException(
+                    status_code=413, 
+                    detail=f"File {file.filename} too large. Maximum size is 500MB per file."
+                )
+            
+            await asyncio.to_thread(input_path.write_bytes, content)
+            input_paths.append(str(input_path))
+
+        # Merge PDF
+        output_path = work_dir / "merged.pdf"
+        try:
+            await asyncio.to_thread(merge_pdf, input_paths, str(output_path))
+        except Exception as e:
+            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+            raise HTTPException(status_code=500, detail=f"Merge failed: {safe_detail}")
+
+        if not output_path.exists():
+            raise HTTPException(status_code=500, detail="Failed to create merged PDF file")
+
+        return FileResponse(
+            path=output_path,
+            filename="merged.pdf",
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'attachment; filename="merged.pdf"'
             }
         )
 

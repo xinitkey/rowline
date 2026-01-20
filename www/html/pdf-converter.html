@@ -17,6 +17,61 @@
     </script>
     <link rel="stylesheet" href="../css/style.css">
 
+    <style>
+        .operation-selector {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+        
+        .operation-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        
+        .operation-option:hover {
+            border-color: #007acc;
+        }
+        
+        .operation-option input[type="radio"] {
+            margin: 0;
+        }
+        
+        .operation-option input[type="radio"]:checked + span {
+            font-weight: bold;
+            color: #007acc;
+        }
+        
+        .operation-options {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .operation-options label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .operation-options input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+    </style>
+
     <link rel="icon" type="image/png" href="../img/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="../img/favicon.svg" />
     <link rel="shortcut icon" href="../img/favicon.ico" />
@@ -30,7 +85,23 @@
     <main>
         <article>
             <h1>PDF Converter</h1>
-            <p class="subtitle">Convert your documents quickly and easily.</p>
+            <p class="subtitle">Convert, split, or merge your PDF documents.</p>
+
+            <!-- Operation Selection -->
+            <div class="operation-selector">
+                <label class="operation-option">
+                    <input type="radio" name="operation" value="convert" checked>
+                    <span>Convert to PDF</span>
+                </label>
+                <label class="operation-option">
+                    <input type="radio" name="operation" value="split">
+                    <span>Split PDF</span>
+                </label>
+                <label class="operation-option">
+                    <input type="radio" name="operation" value="merge">
+                    <span>Merge PDFs</span>
+                </label>
+            </div>
 
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="upload-container">
@@ -45,7 +116,14 @@
                             Choose Files
                         </label>
                         <input type="file" id="pdfFile" name="pdfFile" accept=".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md" required>
-                    </div> 
+                        <input type="file" id="pdfFiles" name="files" accept=".pdf" multiple style="display:none;">
+                    </div>
+                    
+                    <!-- Split options -->
+                    <div id="splitOptions" class="operation-options" style="display:none;">
+                        <label for="pages">Pages to extract (optional, comma-separated, e.g., 1,3,5):</label>
+                        <input type="text" id="pages" name="pages" placeholder="Leave empty to split all pages individually">
+                    </div>
                 </div>
                 <!-- Hidden button to submit form programmatically if needed -->
                 <button type="submit" style="display:none;" id="submitBtn">Convert</button>
@@ -63,7 +141,13 @@
 
             <section class="description-container">
                 <h2>Description</h2>
-                <p>This tool converts various file formats to PDF. Upload your file using the "Choose Files" button above, and the converted PDF file will be available for download. Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, PNG, BMP, TIFF, TXT, PY, LOG, MD</p>
+                <p>This tool allows you to convert documents to PDF, split PDF files into multiple parts, or merge multiple PDFs into one. Select the operation above and upload your files.</p>
+                <ul>
+                    <li><strong>Convert to PDF:</strong> Transform various file formats (HTML, XML, XLSX, DOCX, images, text files) into PDF.</li>
+                    <li><strong>Split PDF:</strong> Extract specific pages or split each page into separate files.</li>
+                    <li><strong>Merge PDFs:</strong> Combine multiple PDF files into a single document.</li>
+                </ul>
+                <p>Supported input formats for conversion: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, PNG, BMP, TIFF, TXT, PY, LOG, MD</p>
             </section>
         </article>
     </main>
