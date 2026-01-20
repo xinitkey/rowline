@@ -81,6 +81,7 @@ CLI режим:
     # Определяем количество воркеров
     import os
     import platform
+    from src.api import MAX_WORKERS, MAX_CONCURRENT_OPERATIONS, USE_MULTIPROCESSING
     
     # На Windows многопроцессный режим uvicorn работает нестабильно
     # Используем 1 воркер, но с большим пулом потоков в api.py
@@ -99,6 +100,12 @@ CLI режим:
     print(f"  API: http://{args.host}:{args.port}/api/health")
     print(f"  Docs: http://{args.host}:{args.port}/docs")
     print(f"  Workers: {workers}")
+    print(f"  Thread Pool: {MAX_WORKERS} threads")
+    print(f"  Max Concurrent Ops: {MAX_CONCURRENT_OPERATIONS}")
+    if USE_MULTIPROCESSING:
+        print(f"  Process Pool: {min(os.cpu_count(), 4)} processes")
+    else:
+        print("  Process Pool: Disabled (Windows)")
     print("=" * 50)
     print("  Нажмите Ctrl+C для остановки")
     print("=" * 50)

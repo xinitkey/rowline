@@ -12,7 +12,8 @@ import asyncio
 import os
 from pathlib import Path
 from typing import Optional
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+import aiofiles
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.responses import FileResponse, StreamingResponse, Response
@@ -33,8 +34,61 @@ import os
 MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Minimum 16 threads
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
 
+# Process pool for CPU-intensive tasks (limited on Windows)
+try:
+    process_executor = ProcessPoolExecutor(max_workers=min(os.cpu_count(), 4))
+    USE_MULTIPROCESSING = True
+except Exception:
+    process_executor = None
+    USE_MULTIPROCESSING = False
+
+# Semaphore to limit concurrent heavy operations
+MAX_CONCURRENT_OPERATIONS = min(os.cpu_count() * 2, 8)
+operation_semaphore = asyncio.Semaphore(MAX_CONCURRENT_OPERATIONS)
+
 # Create temp directory if it doesn't exist
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
+
+
+async def save_uploaded_file_async(file: UploadFile, path: Path) -> None:
+    """Asynchronously save uploaded file to disk."""
+    async with aiofiles.open(path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    return len(content)
+
+
+async def save_file_content_async(content: bytes, path: Path) -> None:
+    """Asynchronously save file content to disk."""
+    async with aiofiles.open(path, 'wb') as f:
+        await f.write(content)
+
+
+async def cleanup_old_temp_files() -> None:
+    """Asynchronously clean up old temporary files."""
+    try:
+        cutoff_time = asyncio.get_event_loop().time() - 3600  # 1 hour ago
+        
+        for temp_dir in TEMP_DIR.iterdir():
+            if temp_dir.is_dir():
+                try:
+                    # Check if directory is old
+                    stat = temp_dir.stat()
+                    if stat.st_mtime < cutoff_time:
+                        await asyncio.to_thread(shutil.rmtree, temp_dir)
+                        print(f"[CLEANUP] Removed old temp directory: {temp_dir}")
+                except Exception as e:
+                    print(f"[CLEANUP] Error removing {temp_dir}: {e}")
+    except Exception as e:
+        print(f"[CLEANUP] Error during cleanup: {e}")
+
+
+# Start background cleanup task
+async def start_background_cleanup():
+    """Start background task for cleaning up old temp files."""
+    while True:
+        await cleanup_old_temp_files()
+        await asyncio.sleep(1800)  # Run every 30 minutes
 
 
 # Create FastAPI application
@@ -52,6 +106,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background tasks on startup."""
+    # Start background cleanup task
+    asyncio.create_task(start_background_cleanup())
+    print("[STARTUP] Background cleanup task started")
 
 
 @app.get("/api/health")
@@ -204,129 +266,126 @@ async def convert_xlsx_to_xml(
             detail="Invalid file format. Expected .xlsx"
         )
     
-    # Create unique temp folder for this request
-    import uuid
-    request_id = str(uuid.uuid4())
-    work_dir = TEMP_DIR / request_id
-    work_dir.mkdir(parents=True, exist_ok=True)
-    
-    try:
-        # Save uploaded file
-        input_path = work_dir / file.filename
-        content = await file.read()
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
         
-        # Async file write
-        await asyncio.to_thread(input_path.write_bytes, content)
-        
-        output_dir = work_dir / "output"
-        output_dir.mkdir(exist_ok=True)
-        
-        # Perform conversion in separate thread (don't block event loop)
         try:
-            result_files = await asyncio.to_thread(
-                _do_conversion,
-                input_path,
-                output_dir,
-                mode,
-                template,
-                sheet_name,
-                code_col,
-                data_start_col,
-                data_end_col,
-                start_row
-            )
-        except ValueError as e:
-            # Sanitize error message for HTTP response
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=400, detail=safe_detail)
-        except FileNotFoundError as e:
-            # Sanitize error message for HTTP response
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=404, detail=safe_detail)
-        
-        if not result_files:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to create output files"
-            )
-        
-        # If one file - return it directly
-        if len(result_files) == 1:
-            # Sanitize filename for HTTP headers (ASCII only)
-            safe_filename = "".join(c for c in result_files[0].name if ord(c) < 128)
-            if not safe_filename:
-                safe_filename = "result.xml"
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
             
-            return FileResponse(
-                path=result_files[0],
-                filename=safe_filename,
-                media_type="application/xml",
-                headers={
-                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
-                }
-            )
-        
-        # If multiple files - return JSON with download links
-        if len(result_files) > 1:
-            import uuid
-            import json
+            await save_file_content_async(content, input_path)
             
-            # Create unique session ID for this convert operation
-            session_id = str(uuid.uuid4())
-            session_dir = TEMP_DIR / session_id
-            session_dir.mkdir(parents=True, exist_ok=True)
+            output_dir = work_dir / "output"
+            output_dir.mkdir(exist_ok=True)
             
-            # Move files to session directory and create download links
-            file_links = []
-            for result_file in result_files:
-                print(f"[CONVERT] Processing result_file: {result_file}, exists: {result_file.exists()}")
-                if not result_file.exists():
-                    print(f"[CONVERT] Warning: result_file does not exist: {result_file}")
-                    continue
+            # Perform conversion in separate thread (don't block event loop)
+            try:
+                result_files = await asyncio.to_thread(
+                    _do_conversion,
+                    input_path,
+                    output_dir,
+                    mode,
+                    template,
+                    sheet_name,
+                    code_col,
+                    data_start_col,
+                    data_end_col,
+                    start_row
+                )
+            except ValueError as e:
+                # Sanitize error message for HTTP response
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=400, detail=safe_detail)
+            except FileNotFoundError as e:
+                # Sanitize error message for HTTP response
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=404, detail=safe_detail)
+            
+            if not result_files:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to create output files"
+                )
+            
+            # If one file - return it directly
+            if len(result_files) == 1:
+                # Sanitize filename for HTTP headers (ASCII only)
+                safe_filename = "".join(c for c in result_files[0].name if ord(c) < 128)
+                if not safe_filename:
+                    safe_filename = "result.xml"
+                
+                return FileResponse(
+                    path=result_files[0],
+                    filename=safe_filename,
+                    media_type="application/xml",
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                    }
+                )
+            
+            # If multiple files - return JSON with download links
+            if len(result_files) > 1:
+                import uuid
+                import json
+                
+                # Create unique session ID for this convert operation
+                session_id = str(uuid.uuid4())
+                session_dir = TEMP_DIR / session_id
+                session_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Move files to session directory and create download links
+                file_links = []
+                for result_file in result_files:
+                    print(f"[CONVERT] Processing result_file: {result_file}, exists: {result_file.exists()}")
+                    if not result_file.exists():
+                        print(f"[CONVERT] Warning: result_file does not exist: {result_file}")
+                        continue
+                        
+                    filename = result_file.name
+                    session_file = session_dir / filename
                     
-                filename = result_file.name
-                session_file = session_dir / filename
+                    # Copy file to session directory
+                    import shutil
+                    print(f"[CONVERT] Copying {result_file} to {session_file}")
+                    shutil.copy2(result_file, session_file)
+                    
+                    file_size = session_file.stat().st_size
+                    print(f"[CONVERT] Copied file {filename}, size: {file_size} bytes")
+                    
+                    file_links.append({
+                        "filename": filename,
+                        "url": f"/temp-files/{session_id}/{filename}",
+                        "size": file_size
+                    })
                 
-                # Copy file to session directory
-                import shutil
-                print(f"[CONVERT] Copying {result_file} to {session_file}")
-                shutil.copy2(result_file, session_file)
+                # Store session info (in a real app, use database/redis)
+                session_info = {
+                    "files": file_links,
+                    "created": asyncio.get_event_loop().time(),
+                    "session_id": session_id
+                }
                 
-                file_size = session_file.stat().st_size
-                print(f"[CONVERT] Copied file {filename}, size: {file_size} bytes")
+                # For demo, store in memory (in production use persistent storage)
+                if not hasattr(convert_xlsx_to_xml, 'sessions'):
+                    convert_xlsx_to_xml.sessions = {}
+                convert_xlsx_to_xml.sessions[session_id] = session_info
                 
-                file_links.append({
-                    "filename": filename,
-                    "url": f"/temp-files/{session_id}/{filename}",
-                    "size": file_size
-                })
-            
-            # Store session info (in a real app, use database/redis)
-            session_info = {
-                "files": file_links,
-                "created": asyncio.get_event_loop().time(),
-                "session_id": session_id
-            }
-            
-            # For demo, store in memory (in production use persistent storage)
-            if not hasattr(convert_xlsx_to_xml, 'sessions'):
-                convert_xlsx_to_xml.sessions = {}
-            convert_xlsx_to_xml.sessions[session_id] = session_info
-            
-            return {
-                "message": f"Converted to {len(file_links)} XML files",
-                "files": file_links,
-                "session_id": session_id
-            }
+                return {
+                    "message": f"Converted to {len(file_links)} XML files",
+                    "files": file_links,
+                    "session_id": session_id
+                }
         
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Cleanup of temp files is deferred for FileResponse
-        # In real app, add background task for cleanup
-        pass
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/upload-template")
@@ -374,64 +433,65 @@ async def convert_to_pdf(
 
     Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
     """
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create unique temp folder for this request
-    import uuid
-    request_id = str(uuid.uuid4())
-    work_dir = TEMP_DIR / request_id
-    work_dir.mkdir(parents=True, exist_ok=True)
-
-    try:
-        # Save uploaded file
-        input_path = work_dir / file.filename
-        content = await file.read()
-        
-        # Check file size (limit to 500MB)
-        file_size = len(content)
-        if file_size > 500 * 1024 * 1024:  # 500MB limit
-            raise HTTPException(
-                status_code=413, 
-                detail="File too large. Maximum size is 500MB."
-            )
-        
-        await asyncio.to_thread(input_path.write_bytes, content)
-
-        # Define output path
-        output_path = work_dir / (input_path.stem + ".pdf")
-
-        # Convert to PDF
         try:
-            await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
-        except UnsupportedFormat as e:
-            # Sanitize error message for HTTP response
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=400, detail=safe_detail)
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
+            
+            # Check file size (limit to 500MB)
+            file_size = len(content)
+            if file_size > 500 * 1024 * 1024:  # 500MB limit
+                raise HTTPException(
+                    status_code=413, 
+                    detail="File too large. Maximum size is 500MB."
+                )
+            
+            await save_file_content_async(content, input_path)
+
+            # Define output path
+            output_path = work_dir / (input_path.stem + ".pdf")
+
+            # Convert to PDF
+            try:
+                await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+            except UnsupportedFormat as e:
+                # Sanitize error message for HTTP response
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=400, detail=safe_detail)
+            except Exception as e:
+                # Sanitize error message for HTTP response
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
+
+            if not output_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create PDF file")
+
+            # Sanitize filename for HTTP headers (ASCII only)
+            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "converted.pdf"
+
+            return FileResponse(
+                path=output_path,
+                filename=safe_filename,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                }
+            )
+
+        except HTTPException:
+            raise
         except Exception as e:
-            # Sanitize error message for HTTP response
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
-
-        if not output_path.exists():
-            raise HTTPException(status_code=500, detail="Failed to create PDF file")
-
-        # Sanitize filename for HTTP headers (ASCII only)
-        safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
-        if not safe_filename:
-            safe_filename = "converted.pdf"
-
-        return FileResponse(
-            path=output_path,
-            filename=safe_filename,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'attachment; filename="{safe_filename}"'
-            }
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 def parse_page_ranges(pages_str: str) -> list[int]:
@@ -632,121 +692,123 @@ async def split_pdf_endpoint(
     - **file**: PDF file to split
     - **pages**: Comma-separated page numbers (e.g., "1,3,5"), empty to split each page individually
     """
-    # Create unique temp folder for this request
-    import uuid
-    request_id = str(uuid.uuid4())
-    work_dir = TEMP_DIR / request_id
-    work_dir.mkdir(parents=True, exist_ok=True)
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        # Save uploaded file
-        input_path = work_dir / file.filename
-        content = await file.read()
-        
-        # Check file size (limit to 500MB)
-        file_size = len(content)
-        if file_size > 500 * 1024 * 1024:  # 500MB limit
-            raise HTTPException(
-                status_code=413, 
-                detail="File too large. Maximum size is 500MB."
-            )
-        
-        await asyncio.to_thread(input_path.write_bytes, content)
-
-        # Parse pages
-        page_list = None
-        if pages.strip():
-            try:
-                page_list = parse_page_ranges(pages.strip())
-            except ValueError as e:
-                raise HTTPException(status_code=400, detail=f"Invalid page format: {str(e)}")
-
-        # Split PDF
         try:
-            output_files = await asyncio.to_thread(split_pdf, str(input_path), str(work_dir), page_list)
-            # Ensure all files are written to disk
-            await asyncio.sleep(0.5)
-        except Exception as e:
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=500, detail=f"Split failed: {safe_detail}")
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
+            
+            # Check file size (limit to 500MB)
+            file_size = len(content)
+            if file_size > 500 * 1024 * 1024:  # 500MB limit
+                raise HTTPException(
+                    status_code=413, 
+                    detail="File too large. Maximum size is 500MB."
+                )
+            
+            await save_file_content_async(content, input_path)
 
-        if not output_files:
-            raise HTTPException(status_code=500, detail="No output files generated")
+            # Parse pages
+            page_list = None
+            if pages.strip():
+                try:
+                    page_list = parse_page_ranges(pages.strip())
+                except ValueError as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid page format: {str(e)}")
 
-        # If multiple files, return JSON with download links
-        if len(output_files) > 1:
-            import uuid
-            import json
-            
-            # Create unique session ID for this split operation
-            session_id = str(uuid.uuid4())
-            session_dir = TEMP_DIR / session_id
-            session_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Move files to session directory and create download links
-            file_links = []
-            for i, pdf_path in enumerate(output_files, 1):
-                print(f"[SPLIT] Processing pdf_path: {pdf_path}, exists: {Path(pdf_path).exists()}")
-                pdf_path_obj = Path(pdf_path)
-                if not pdf_path_obj.exists():
-                    print(f"[SPLIT] Warning: pdf_path does not exist: {pdf_path}")
-                    continue
-                
-                # Use the actual filename from the path
-                filename = pdf_path_obj.name
-                session_file = session_dir / filename
-                
-                # Copy file to session directory
-                import shutil
-                print(f"[SPLIT] Copying {pdf_path} to {session_file}")
-                shutil.copy2(pdf_path, session_file)
-                
-                file_size = session_file.stat().st_size
-                print(f"[SPLIT] Copied file {filename}, size: {file_size} bytes")
-                
-                file_links.append({
-                    "filename": filename,
-                    "url": f"/temp-files/{session_id}/{filename}",
-                    "size": file_size
-                })
-            
-            # Store session info (in a real app, use database/redis)
-            session_info = {
-                "files": file_links,
-                "created": asyncio.get_event_loop().time(),
-                "session_id": session_id
-            }
-            
-            # For demo, store in memory (in production use persistent storage)
-            if not hasattr(split_pdf_endpoint, 'sessions'):
-                split_pdf_endpoint.sessions = {}
-            split_pdf_endpoint.sessions[session_id] = session_info
-            
-            return {
-                "message": f"PDF split into {len(file_links)} pages",
-                "files": file_links,
-                "session_id": session_id
-            }
-        else:
-            # Single file
-            output_path = Path(output_files[0])
-            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
-            if not safe_filename:
-                safe_filename = "split.pdf"
+            # Split PDF
+            try:
+                output_files = await asyncio.to_thread(split_pdf, str(input_path), str(work_dir), page_list)
+                # Ensure all files are written to disk
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Split failed: {safe_detail}")
 
-            return FileResponse(
-                path=output_path,
-                filename=safe_filename,
-                media_type="application/pdf",
-                headers={
-                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+            if not output_files:
+                raise HTTPException(status_code=500, detail="No output files generated")
+
+            # If multiple files, return JSON with download links
+            if len(output_files) > 1:
+                import uuid
+                import json
+                
+                # Create unique session ID for this split operation
+                session_id = str(uuid.uuid4())
+                session_dir = TEMP_DIR / session_id
+                session_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Move files to session directory and create download links
+                file_links = []
+                for i, pdf_path in enumerate(output_files, 1):
+                    print(f"[SPLIT] Processing pdf_path: {pdf_path}, exists: {Path(pdf_path).exists()}")
+                    pdf_path_obj = Path(pdf_path)
+                    if not pdf_path_obj.exists():
+                        print(f"[SPLIT] Warning: pdf_path does not exist: {pdf_path}")
+                        continue
+                    
+                    # Use the actual filename from the path
+                    filename = pdf_path_obj.name
+                    session_file = session_dir / filename
+                    
+                    # Copy file to session directory
+                    import shutil
+                    print(f"[SPLIT] Copying {pdf_path} to {session_file}")
+                    shutil.copy2(pdf_path, session_file)
+                    
+                    file_size = session_file.stat().st_size
+                    print(f"[SPLIT] Copied file {filename}, size: {file_size} bytes")
+                    
+                    file_links.append({
+                        "filename": filename,
+                        "url": f"/temp-files/{session_id}/{filename}",
+                        "size": file_size
+                    })
+                
+                # Store session info (in a real app, use database/redis)
+                session_info = {
+                    "files": file_links,
+                    "created": asyncio.get_event_loop().time(),
+                    "session_id": session_id
                 }
-            )
+                
+                # For demo, store in memory (in production use persistent storage)
+                if not hasattr(split_pdf_endpoint, 'sessions'):
+                    split_pdf_endpoint.sessions = {}
+                split_pdf_endpoint.sessions[session_id] = session_info
+                
+                return {
+                    "message": f"PDF split into {len(file_links)} pages",
+                    "files": file_links,
+                    "session_id": session_id
+                }
+            else:
+                # Single file
+                output_path = Path(output_files[0])
+                safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+                if not safe_filename:
+                    safe_filename = "split.pdf"
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+                return FileResponse(
+                    path=output_path,
+                    filename=safe_filename,
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                    }
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/merge-pdf")
@@ -764,55 +826,63 @@ async def merge_pdf_endpoint(
     if len(files) > 25:
         raise HTTPException(status_code=400, detail="Maximum 25 PDF files allowed for merging")
 
-    # Create unique temp folder for this request
-    import uuid
-    request_id = str(uuid.uuid4())
-    work_dir = TEMP_DIR / request_id
-    work_dir.mkdir(parents=True, exist_ok=True)
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        input_paths = []
-        
-        for file in files:
-            # Save uploaded file
-            input_path = work_dir / file.filename
-            content = await file.read()
-            
-            # Check file size (limit to 500MB total)
-            file_size = len(content)
-            if file_size > 500 * 1024 * 1024:  # 500MB limit per file
-                raise HTTPException(
-                    status_code=413, 
-                    detail=f"File {file.filename} too large. Maximum size is 500MB per file."
-                )
-            
-            await asyncio.to_thread(input_path.write_bytes, content)
-            input_paths.append(str(input_path))
-
-        # Merge PDF
-        output_path = work_dir / "merged.pdf"
         try:
-            await asyncio.to_thread(merge_pdf, input_paths, str(output_path))
+            input_paths = []
+            
+            # Save all files concurrently
+            save_tasks = []
+            file_contents = []
+            
+            for file in files:
+                content = await file.read()
+                file_contents.append((file.filename, content))
+                if len(content) > 500 * 1024 * 1024:  # 500MB limit per file
+                    raise HTTPException(
+                        status_code=413, 
+                        detail=f"File {file.filename} too large. Maximum size is 500MB per file."
+                    )
+            
+            # Save files concurrently
+            for filename, content in file_contents:
+                input_path = work_dir / filename
+                save_tasks.append(save_file_content_async(content, input_path))
+                input_paths.append(str(input_path))
+            
+            # Wait for all files to be saved
+            await asyncio.gather(*save_tasks)
+
+            # Merge PDF
+            output_path = work_dir / "merged.pdf"
+            try:
+                await asyncio.to_thread(merge_pdf, input_paths, str(output_path))
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Merge failed: {safe_detail}")
+
+            if not output_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create merged PDF file")
+
+            return FileResponse(
+                path=output_path,
+                filename="merged.pdf",
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": 'attachment; filename="merged.pdf"'
+                }
+            )
+
+        except HTTPException:
+            raise
         except Exception as e:
-            safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
-            raise HTTPException(status_code=500, detail=f"Merge failed: {safe_detail}")
-
-        if not output_path.exists():
-            raise HTTPException(status_code=500, detail="Failed to create merged PDF file")
-
-        return FileResponse(
-            path=output_path,
-            filename="merged.pdf",
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": 'attachment; filename="merged.pdf"'
-            }
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 # Mount static files (frontend)
