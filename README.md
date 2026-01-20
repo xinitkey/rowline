@@ -93,6 +93,19 @@ python main.py --host 127.0.0.1 --port 8000 --workers 16
 - **Semaphore**: Concurrent heavy operation limiting
 - **Background cleanup**: Automatic temporary file cleanup
 - **Extended timeouts**: 30 minutes for large file processing, 1 hour for batch operations
+- **Excel optimization**: Specialized handling with adaptive threading (up to 32 threads for large files)
+- **Resource management**: CPU-aware thread allocation and memory optimization
+
+### Excel Conversion Optimizations
+
+The system includes maximum performance optimizations for Excel to PDF conversion:
+
+- **Adaptive Threading**: CPU-aware thread pool (12 workers on 8-core system)
+- **Large File Handling**: Special optimization path for files >100MB with 32 max threads
+- **LibreOffice Tuning**: Performance environment variables and headless optimizations
+- **Resource Limiting**: Excel conversions limited to 2 concurrent operations to prevent CPU saturation
+- **Fallback Method**: Alternative conversion using openpyxl + reportlab for systems without LibreOffice
+- **Memory Optimization**: Optimized allocation for headless LibreOffice operation
 
 ## 📖 Usage
 
