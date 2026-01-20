@@ -279,17 +279,26 @@ async def convert_xlsx_to_xml(
             # Move files to session directory and create download links
             file_links = []
             for result_file in result_files:
+                print(f"[CONVERT] Processing result_file: {result_file}, exists: {result_file.exists()}")
+                if not result_file.exists():
+                    print(f"[CONVERT] Warning: result_file does not exist: {result_file}")
+                    continue
+                    
                 filename = result_file.name
                 session_file = session_dir / filename
                 
                 # Copy file to session directory
                 import shutil
+                print(f"[CONVERT] Copying {result_file} to {session_file}")
                 shutil.copy2(result_file, session_file)
+                
+                file_size = session_file.stat().st_size
+                print(f"[CONVERT] Copied file {filename}, size: {file_size} bytes")
                 
                 file_links.append({
                     "filename": filename,
                     "url": f"/temp-files/{session_id}/{filename}",
-                    "size": session_file.stat().st_size
+                    "size": file_size
                 })
             
             # Store session info (in a real app, use database/redis)
@@ -539,29 +548,63 @@ async def serve_convert_file(session_id: str, filename: str):
 @app.get("/download-zip/{session_id}")
 async def download_session_zip(session_id: str):
     """Download all files from a session as ZIP archive."""
+    print(f"[ZIP] Starting ZIP creation for session: {session_id}")
+    print(f"[ZIP] TEMP_DIR: {TEMP_DIR}")
+    
     # Check all possible session stores
     session_info = None
     
     # Check split PDF sessions
     if hasattr(split_pdf_endpoint, 'sessions'):
         session_info = split_pdf_endpoint.sessions.get(session_id)
+        if session_info:
+            print(f"[ZIP] Found session in split_pdf_endpoint")
     
     # Check convert XLSX sessions
     if not session_info and hasattr(convert_xlsx_to_xml, 'sessions'):
         session_info = convert_xlsx_to_xml.sessions.get(session_id)
+        if session_info:
+            print(f"[ZIP] Found session in convert_xlsx_to_xml")
     
     if not session_info:
+        print(f"[ZIP] Session not found: {session_id}")
         raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    print(f"[ZIP] Session info: {len(session_info['files'])} files")
     
     # Create ZIP in memory
     zip_buffer = io.BytesIO()
     
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for file_info in session_info['files']:
-            file_path = TEMP_DIR / session_id / file_info['filename']
-            if file_path.exists():
-                # Add file to ZIP with its filename
-                zf.write(file_path, file_info['filename'])
+    try:
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for file_info in session_info['files']:
+                file_path = TEMP_DIR / session_id / file_info['filename']
+                print(f"[ZIP] Checking file: {file_path}, exists: {file_path.exists()}")
+                if file_path.exists():
+                    file_size = file_path.stat().st_size
+                    print(f"[ZIP] File size: {file_size} bytes")
+                    if file_size > 0:
+                        # Ensure filename is safe for ZIP
+                        safe_filename = file_info['filename'].encode('utf-8', errors='replace').decode('utf-8')
+                        print(f"[ZIP] Adding to ZIP as: {safe_filename}")
+                        zf.write(str(file_path), safe_filename)
+                        print(f"[ZIP] Successfully added {safe_filename}")
+                    else:
+                        print(f"[ZIP] Skipping empty file: {file_info['filename']}")
+                else:
+                    print(f"[ZIP] File not found: {file_path}")
+        
+        zip_size = zip_buffer.tell()
+        print(f"[ZIP] Created ZIP with {len(session_info['files'])} files, total size: {zip_size} bytes")
+        
+        if zip_size == 0:
+            raise HTTPException(status_code=500, detail="Failed to create ZIP archive - no files added")
+            
+    except Exception as e:
+        print(f"[ZIP] Error creating ZIP: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to create ZIP: {str(e)}")
     
     zip_buffer.seek(0)
     
@@ -642,17 +685,28 @@ async def split_pdf_endpoint(
             # Move files to session directory and create download links
             file_links = []
             for i, pdf_path in enumerate(output_files, 1):
-                filename = f"page_{i:03d}.pdf"
+                print(f"[SPLIT] Processing pdf_path: {pdf_path}, exists: {Path(pdf_path).exists()}")
+                pdf_path_obj = Path(pdf_path)
+                if not pdf_path_obj.exists():
+                    print(f"[SPLIT] Warning: pdf_path does not exist: {pdf_path}")
+                    continue
+                
+                # Use the actual filename from the path
+                filename = pdf_path_obj.name
                 session_file = session_dir / filename
                 
                 # Copy file to session directory
                 import shutil
+                print(f"[SPLIT] Copying {pdf_path} to {session_file}")
                 shutil.copy2(pdf_path, session_file)
+                
+                file_size = session_file.stat().st_size
+                print(f"[SPLIT] Copied file {filename}, size: {file_size} bytes")
                 
                 file_links.append({
                     "filename": filename,
                     "url": f"/temp-files/{session_id}/{filename}",
-                    "size": session_file.stat().st_size
+                    "size": file_size
                 })
             
             # Store session info (in a real app, use database/redis)
