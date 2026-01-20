@@ -459,27 +459,22 @@ async def split_pdf_endpoint(
 
         # If multiple files, create ZIP archive
         if len(output_files) > 1:
-            import tarfile
+            zip_path = work_dir / "split_pages.zip"
+            import shutil
             
-            tar_path = work_dir / "split_pages.tar.gz"
+            # Create ZIP using shutil for better reliability
+            base_name = str(work_dir / "split_pages")
+            shutil.make_archive(base_name, 'zip', work_dir, 'page_*.pdf')
             
-            with tarfile.open(tar_path, "w:gz") as tar:
-                for pdf_file_path in output_files:
-                    if os.path.exists(pdf_file_path):
-                        # Add file with basename only
-                        tar.add(pdf_file_path, arcname=os.path.basename(pdf_file_path))
-                    else:
-                        raise HTTPException(status_code=500, detail=f"Output file not found: {os.path.basename(pdf_file_path)}")
-            
-            if not tar_path.exists():
-                raise HTTPException(status_code=500, detail="Failed to create archive")
+            if not zip_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create ZIP archive")
             
             return FileResponse(
-                path=tar_path,
-                filename="split_pages.tar.gz",
-                media_type="application/gzip",
+                path=zip_path,
+                filename="split_pages.zip",
+                media_type="application/zip",
                 headers={
-                    "Content-Disposition": 'attachment; filename="split_pages.tar.gz"'
+                    "Content-Disposition": 'attachment; filename="split_pages.zip"'
                 }
             )
         else:
