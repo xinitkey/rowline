@@ -459,9 +459,21 @@ async def split_pdf_endpoint(
         if len(output_files) > 1:
             zip_path = work_dir / "split_pages.zip"
             import zipfile
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                for pdf_file in output_files:
-                    zipf.write(pdf_file, os.path.basename(pdf_file))
+            import time
+            
+            # Small delay to ensure files are written
+            time.sleep(0.1)
+            
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for pdf_file_path in output_files:
+                    if os.path.exists(pdf_file_path):
+                        # Use only basename for ZIP entry
+                        zipf.write(pdf_file_path, os.path.basename(pdf_file_path))
+                    else:
+                        raise HTTPException(status_code=500, detail=f"Output file not found: {os.path.basename(pdf_file_path)}")
+            
+            if not zip_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create ZIP archive")
             
             return FileResponse(
                 path=zip_path,
