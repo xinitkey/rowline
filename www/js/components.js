@@ -1,4 +1,75 @@
 /**
+ * Theme Toggle (Expand) - Dark/Light mode switch
+ */
+class ThemeToggle {
+    constructor() {
+        this.storageKey = 'theme';
+        this.toggleBtn = null;
+        
+        // Use MutationObserver to detect when the header (and button) is injected
+        this.observer = new MutationObserver(() => this.tryInit());
+        this.observer.observe(document.body, { childList: true, subtree: true });
+
+        // Try to init immediately
+        this.tryInit();
+    }
+
+    tryInit() {
+        if (this.toggleBtn) return; // Already initialized
+
+        this.toggleBtn = document.querySelector('.theme-toggle');
+        if (this.toggleBtn) {
+            this.init();
+            this.observer.disconnect(); // Stop observing
+        }
+    }
+
+    init() {
+        // Load saved theme or detect system preference
+        const savedTheme = localStorage.getItem(this.storageKey);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            this.setDarkMode(true);
+        }
+
+        // Bind click event
+        this.toggleBtn.addEventListener('click', () => this.toggle());
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+            if (!localStorage.getItem(this.storageKey)) {
+                this.setDarkMode(e.matches);
+            }
+        });
+    }
+
+    toggle() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        this.setDarkMode(!isDark);
+        localStorage.setItem(this.storageKey, isDark ? 'light' : 'dark');
+    }
+
+    setDarkMode(enabled) {
+        const root = document.documentElement;
+        if (enabled) {
+            root.setAttribute('data-theme', 'dark');
+            this.toggleBtn.classList.add('theme-toggle--toggled');
+        } else {
+            root.removeAttribute('data-theme');
+            this.toggleBtn.classList.remove('theme-toggle--toggled');
+        }
+    }
+}
+
+// Initialize theme toggle when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => new ThemeToggle());
+} else {
+    new ThemeToggle();
+}
+
+/**
  * Component Loader
  * Loads header and footer dynamically and handles active state
  */

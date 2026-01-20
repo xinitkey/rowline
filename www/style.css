@@ -7,7 +7,7 @@ header {
   align-items: center;            /* по вертикали по центру */
   justify-content: center;        /* центрируем всё по умолчанию */
   padding: 1rem 20px;             /* увеличенный вертикальный padding */
-  background-color: #cacaca;
+  background-color: #fff;
   position: relative;
 }
 
@@ -55,7 +55,6 @@ main {
     justify-content: center;
     align-items: center;
     padding: 2rem;
-    background-color: #cfcfcf;
 }
 
 article {
@@ -105,14 +104,13 @@ h1 {
     font-size: 1.1rem;
     font-weight: 600;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 10px;
 }
 
 .btn-upload:hover {
-    background: #57d0d6;
+    background: #56d0d6;
 }
 
 .btn-upload i {
@@ -150,19 +148,19 @@ h1 {
 }
 
 .description-container {
-        background-color: #E3E2E2;
-        border: 0px solid #9ca3cd;
-        border-radius: 50px;
-        padding: 2rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 1rem;
-        gap: 1rem; /* расстояние между всеми дочерними блоками */
+    background-color: #E3E2E2; /* Light gray/lavender bg */
+    border: 0px solid #9ca3cd;
+    border-radius: 50px;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
 }
+
 a {
-    color: #0d7377;
+    color: #6a78f3;
     text-decoration: none;
 }
 
@@ -175,7 +173,7 @@ footer {
     padding: 2rem;
     font-size:0.8rem;
     color: #fff;
-    background-color: #0d7377;
+    background-color: #179593;
  
 }
 
@@ -251,11 +249,11 @@ footer a:hover {
 }
  /* Drag & Drop highlight */
 .upload-container.highlight {
-    border-color: #57d0d6;
+    border-color: #6a78f3;
     background-color: #e0e4ff;
 }
 
-.active { color: #0d7377; font-weight: 700; }
+.active { color: #6a78f3; font-weight: 700; }
 
 .template-select {
     margin-top: 1rem;
@@ -308,7 +306,7 @@ footer a:hover {
 }
 
 .theme-toggle:hover {
-    color: #57d0d6;
+    color: #6a78f3;
 }
 
 .theme-toggle svg {
@@ -351,10 +349,7 @@ footer a:hover {
     background-color: #1a1b26;
     color: #c0caf5;
 }
-[data-theme="dark"] main {
-    background-color: #1a1b26;
-    color: #c0caf5;
-}
+
 [data-theme="dark"] header {
     background-color: #16161e;
 }
@@ -369,11 +364,11 @@ footer a:hover {
 
 [data-theme="dark"] .upload-container {
     background-color: #24283b;
-    border-color: #57d0d6;
+    border-color: #565f89;
 }
 
 [data-theme="dark"] .upload-container.highlight {
-    border-color: #57d0d6;
+    border-color: #7aa2f7;
     background-color: #2a2e4a;
 }
 
@@ -396,19 +391,19 @@ footer a:hover {
 }
 
 [data-theme="dark"] a {
-    color: #ffffff;
+    color: #7aa2f7;
 }
 
 [data-theme="dark"] nav a {
-    color: #0d7377;
+    color: #a9b1d6;
 }
 
 [data-theme="dark"] nav a.active {
-    color: #0d7377;
+    color: #7aa2f7;
 }
 
 [data-theme="dark"] nav a:hover {
-    color: #0d7377;
+    color: #7aa2f7;
 }
 
 [data-theme="dark"] footer {
@@ -420,7 +415,7 @@ footer a:hover {
 }
 
 [data-theme="dark"] .theme-toggle:hover {
-    color: #0d7377;
+    color: #7aa2f7;
 }
 
 [data-theme="dark"] .template-select {
@@ -441,10 +436,10 @@ footer a:hover {
 .about-container { max-width: 900px; margin: 0 auto; }
 .about-logo { max-width: 200px; margin: 2rem 0; }
 .content-card { background: white; padding: 2rem; border-radius: 12px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 0rem; }
-.feature-card { background: #ededed; padding: 1.5rem; border-radius: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+.features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+.feature-card { background: white; padding: 1.5rem; border-radius: 12px; text-align: left; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
 .feature-card:hover { transform: translateY(-5px); }
-.feature-card h3 { color: #0d7377; margin-top: 0; }
+.feature-card h3 { color: #6a78f3; margin-top: 0; }
 .contact-section { text-align: center; }
 
 [data-theme='dark'] .content-card, [data-theme='dark'] .feature-card { background: #1f2335; box-shadow: none; }

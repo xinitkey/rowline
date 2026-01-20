@@ -1,287 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Converter - Rowline</title>
+    <title>PDF Converter | Rowline</title>
+    <script>
+        // Prevent flash of wrong theme on page load
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="../css/style.css">
-    <link rel="icon" type="image/x-icon" href="../img/favicon.ico">
-    <style>
-        .pdf-converter {
-            max-width: 600px;
-            margin: 2rem auto;
-            padding: 2rem;
-            background: #f8f9fa;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .pdf-converter h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 1.5rem;
-        }
-        
-        .upload-area {
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: white;
-        }
-        
-        .upload-area:hover {
-            border-color: #007bff;
-            background: #f0f7ff;
-        }
-        
-        .upload-area.dragover {
-            border-color: #28a745;
-            background: #d4edda;
-        }
-        
-        .upload-area input[type="file"] {
-            display: none;
-        }
-        
-        .upload-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-        
-        .supported-formats {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 1rem;
-        }
-        
-        .file-info {
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #e9ecef;
-            border-radius: 6px;
-            display: none;
-        }
-        
-        .file-info.visible {
-            display: block;
-        }
-        
-        .convert-btn {
-            display: block;
-            width: 100%;
-            padding: 1rem;
-            margin-top: 1.5rem;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .convert-btn:hover:not(:disabled) {
-            background: #0056b3;
-        }
-        
-        .convert-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .status {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 6px;
-            display: none;
-        }
-        
-        .status.visible {
-            display: block;
-        }
-        
-        .status.loading {
-            background: #fff3cd;
-            color: #856404;
-        }
-        
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-        }
-        
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-        
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #856404;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-            vertical-align: middle;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+
+    <link rel="icon" type="image/png" href="../img/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="../img/favicon.svg" />
+    <link rel="shortcut icon" href="../img/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../img/apple-touch-icon.png" />
+    <link rel="manifest" href="../img/site.webmanifest" />
 </head>
+
 <body>
     <div id="header-placeholder"></div>
-    
-    <main class="pdf-converter">
-        <h1>📄 File to PDF Converter</h1>
-        
-        <div class="upload-area" id="uploadArea">
-            <input type="file" id="fileInput" accept=".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md">
-            <div class="upload-icon">📁</div>
-            <p><strong>Click to select</strong> or drag & drop file here</p>
-            <p class="supported-formats">
-                Supported: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, PNG, BMP, TIFF, TXT, PY, LOG, MD
-            </p>
-        </div>
-        
-        <div class="file-info" id="fileInfo">
-            <strong>Selected file:</strong> <span id="fileName"></span><br>
-            <strong>Size:</strong> <span id="fileSize"></span>
-        </div>
-        
-        <button class="convert-btn" id="convertBtn" disabled>Convert to PDF</button>
-        
-        <div class="status" id="status"></div>
+
+    <main>
+        <article>
+            <h1>PDF Converter</h1>
+            <p class="subtitle">Convert your documents quickly and easily.</p>
+
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="upload-container">
+                    <div class="file-input-wrapper">
+                        <label for="pdfFile" class="btn-upload">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 18V12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M9 15H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            Choose Files
+                        </label>
+                        <input type="file" id="pdfFile" name="pdfFile" accept=".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md" required>
+                    </div> 
+                </div>
+                <!-- Hidden button to submit form programmatically if needed -->
+                <button type="submit" style="display:none;" id="submitBtn">Convert</button>
+            </form>
+
+            <section id="resultSection" style="display:none;">
+                <h2>Conversion Result</h2>
+                <a id="downloadLink" href="#" download="converted.pdf">Download PDF File</a>
+            </section>
+
+            <section id="errorSection" style="display:none; color:red;">
+                <h2>Error</h2>
+                <p id="errorMessage"></p>
+            </section>
+
+            <section class="description-container">
+                <h2>Description</h2>
+                <p>This tool converts various file formats to PDF. Upload your file using the "Choose Files" button above, and the converted PDF file will be available for download. Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, PNG, BMP, TIFF, TXT, PY, LOG, MD</p>
+            </section>
+        </article>
     </main>
     
     <div id="footer-placeholder"></div>
-    
     <script src="../js/components.js"></script>
-    <script>
-        const uploadArea = document.getElementById('uploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const convertBtn = document.getElementById('convertBtn');
-        const status = document.getElementById('status');
-        
-        let selectedFile = null;
-        
-        // Click to upload
-        uploadArea.addEventListener('click', () => fileInput.click());
-        
-        // Drag & drop
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-        
-        // File input change
-        fileInput.addEventListener('change', () => {
-            if (fileInput.files.length) {
-                handleFile(fileInput.files[0]);
-            }
-        });
-        
-        function handleFile(file) {
-            selectedFile = file;
-            fileName.textContent = file.name;
-            fileSize.textContent = formatBytes(file.size);
-            fileInfo.classList.add('visible');
-            convertBtn.disabled = false;
-            status.classList.remove('visible');
-        }
-        
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        // Convert button
-        convertBtn.addEventListener('click', async () => {
-            if (!selectedFile) return;
-            
-            convertBtn.disabled = true;
-            showStatus('loading', '<span class="spinner"></span>Converting... This may take several minutes for large files.');
-            
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            
-            try {
-                // Create AbortController for timeout handling
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
-                
-                const response = await fetch('/api/convert-to-pdf', {
-                    method: 'POST',
-                    body: formData,
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    let errorMsg = 'Conversion failed';
-                    try {
-                        const error = await response.json();
-                        errorMsg = error.detail || errorMsg;
-                    } catch (e) {
-                        // If response is not JSON, use status text
-                        errorMsg = `${response.status}: ${response.statusText}`;
-                    }
-                    throw new Error(errorMsg);
-                }
-                
-                // Download the result
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = selectedFile.name.replace(/\.[^/.]+$/, '') + '.pdf';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                window.URL.revokeObjectURL(url);
-                
-                showStatus('success', '✅ Conversion successful! File downloaded.');
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    showStatus('error', '❌ Error: Conversion timed out. The file may be too large or complex. Please try with a smaller file.');
-                } else {
-                    showStatus('error', '❌ Error: ' + err.message);
-                }
-            } finally {
-                convertBtn.disabled = false;
-            }
-        });
-        
-        function showStatus(type, message) {
-            status.className = 'status visible ' + type;
-            status.innerHTML = message;
-        }
-    </script>
+    <script src="../js/pdf-converter.js"></script>
 </body>
+
 </html>
