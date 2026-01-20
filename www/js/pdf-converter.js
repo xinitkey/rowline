@@ -184,6 +184,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Show split result with download links
+     */
+    function showSplitResult(result) {
+        // Clear existing content
+        resultSection.innerHTML = `
+            <h2>Split Result</h2>
+            <p>${result.message}</p>
+            <div class="file-list">
+                ${result.files.map(file => `
+                    <div class="file-item">
+                        <a href="${file.url}" download="${file.filename}" class="download-link">
+                            📄 ${file.filename} (${formatFileSize(file.size)})
+                        </a>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        resultSection.style.display = 'block';
+    }
+
+    /**
      * Handle conversion
      */
     async function handleConvert() {
@@ -251,22 +272,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(errorMsg);
             }
 
-            // Download the result
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            downloadLink.href = url;
-            
-            // Set appropriate filename
-            if (operation === 'convert') {
-                const file = fileInput.files[0];
-                downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
-            } else if (operation === 'split') {
-                downloadLink.download = 'split_pages.zip';
-            } else if (operation === 'merge') {
-                downloadLink.download = 'merged.pdf';
+            if (operation === 'split') {
+                // For split operation, show download links for individual files
+                const result = await response.json();
+                showSplitResult(result);
+            } else {
+                // For convert and merge, download the file directly
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                downloadLink.href = url;
+                
+                // Set appropriate filename
+                if (operation === 'convert') {
+                    const file = fileInput.files[0];
+                    downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
+                } else if (operation === 'merge') {
+                    downloadLink.download = 'merged.pdf';
+                }
+                
+                resultSection.style.display = 'block';
             }
-            
-            resultSection.style.display = 'block';
 
         } catch (err) {
             let message = 'Error: ' + err.message;

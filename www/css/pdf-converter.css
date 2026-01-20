@@ -60,3 +60,25 @@
     color: #666;
     line-height: 1.4;
 }
+
+.file-list {
+    margin-top: 1rem;
+}
+
+.file-item {
+    margin-bottom: 0.5rem;
+}
+
+.download-link {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: #007acc;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.download-link:hover {
+    background: #0056b3;
+}

@@ -446,6 +446,41 @@ def parse_page_ranges(pages_str: str) -> list[int]:
     return sorted(list(pages))
 
 
+@app.get("/temp-files/{session_id}/{filename}")
+async def serve_split_file(session_id: str, filename: str):
+    """Serve individual split PDF files."""
+    # Check if session exists
+    if not hasattr(serve_split_file, 'sessions'):
+        serve_split_file.sessions = getattr(split_pdf_endpoint, 'sessions', {})
+    
+    session_info = serve_split_file.sessions.get(session_id)
+    if not session_info:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    # Find the file in session
+    file_info = None
+    for f in session_info['files']:
+        if f['filename'] == filename:
+            file_info = f
+            break
+    
+    if not file_info:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_path = TEMP_DIR / session_id / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
 @app.post("/api/split-pdf")
 async def split_pdf_endpoint(
     file: UploadFile = File(..., description="PDF file to split"),
@@ -498,36 +533,49 @@ async def split_pdf_endpoint(
         if not output_files:
             raise HTTPException(status_code=500, detail="No output files generated")
 
-        # If multiple files, create ZIP archive
+        # If multiple files, return JSON with download links
         if len(output_files) > 1:
-            zip_path = work_dir / "split_pages.zip"
-            import zipfile
-            import time
+            import uuid
+            import json
             
-            # Wait for files to be fully written
-            time.sleep(1.0)
+            # Create unique session ID for this split operation
+            session_id = str(uuid.uuid4())
+            session_dir = TEMP_DIR / session_id
+            session_dir.mkdir(parents=True, exist_ok=True)
             
-            # Create ZIP manually for better control
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                for pdf_file_path in output_files:
-                    if os.path.exists(pdf_file_path) and os.path.getsize(pdf_file_path) > 0:
-                        # Add with just filename, not full path
-                        zipf.write(pdf_file_path, os.path.basename(pdf_file_path))
-                    else:
-                        raise HTTPException(status_code=500, detail=f"Output file missing or empty: {os.path.basename(pdf_file_path)}")
+            # Move files to session directory and create download links
+            file_links = []
+            for i, pdf_path in enumerate(output_files, 1):
+                filename = f"page_{i:03d}.pdf"
+                session_file = session_dir / filename
+                
+                # Copy file to session directory
+                import shutil
+                shutil.copy2(pdf_path, session_file)
+                
+                file_links.append({
+                    "filename": filename,
+                    "url": f"/temp-files/{session_id}/{filename}",
+                    "size": session_file.stat().st_size
+                })
             
-            # Verify ZIP was created and has content
-            if not zip_path.exists() or zip_path.stat().st_size == 0:
-                raise HTTPException(status_code=500, detail="Failed to create valid ZIP archive")
+            # Store session info (in a real app, use database/redis)
+            session_info = {
+                "files": file_links,
+                "created": asyncio.get_event_loop().time(),
+                "session_id": session_id
+            }
             
-            return FileResponse(
-                path=zip_path,
-                filename="split_pages.zip",
-                media_type="application/zip",
-                headers={
-                    "Content-Disposition": 'attachment; filename="split_pages.zip"'
-                }
-            )
+            # For demo, store in memory (in production use persistent storage)
+            if not hasattr(split_pdf_endpoint, 'sessions'):
+                split_pdf_endpoint.sessions = {}
+            split_pdf_endpoint.sessions[session_id] = session_info
+            
+            return {
+                "message": f"PDF split into {len(file_links)} pages",
+                "files": file_links,
+                "session_id": session_id
+            }
         else:
             # Single file
             output_path = Path(output_files[0])
