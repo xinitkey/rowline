@@ -107,10 +107,16 @@ h1 {
     display: inline-flex;
     align-items: center;
     gap: 10px;
+    text-decoration: none !important;
 }
 
 .btn-upload:hover {
     background: #56d0d6;
+    text-decoration: none !important;
+}
+
+a.btn-upload:hover {
+    text-decoration: none !important;
 }
 
 .btn-upload i {

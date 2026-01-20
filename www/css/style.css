@@ -87,6 +87,8 @@ h1 {
     align-items: center;
     justify-content: center;
     margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
 }
 
 .file-input-wrapper {
@@ -109,9 +111,18 @@ h1 {
     align-items: center;
     justify-content: center;
     gap: 10px;
+    text-decoration: none !important;
+    transition: background-color 0.3s ease;
+    position: relative;
+    z-index: 10;
 }
 
 .btn-upload:hover {
+    background: #57d0d6;
+}
+
+button.btn-upload:hover,
+label.btn-upload:hover {
     background: #57d0d6;
 }
 
