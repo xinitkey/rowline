@@ -221,6 +221,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Check file count limit for merge
+        if (operation === 'merge' && fileInput.files.length > 25) {
+            showError('Maximum 25 PDF files allowed for merging');
+            return;
+        }
+
         const formData = new FormData();
         
         if (operation === 'merge') {
@@ -376,6 +382,12 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validate file count
         if (this.files.length < 2) {
             showError('Please select at least 2 PDF files to merge');
+            pdfFiles.value = '';
+            return;
+        }
+
+        if (this.files.length > 25) {
+            showError('Maximum 25 PDF files allowed for merging');
             pdfFiles.value = '';
             return;
         }

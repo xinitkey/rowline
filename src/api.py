@@ -756,10 +756,13 @@ async def merge_pdf_endpoint(
     """
     Merge multiple PDF files into one.
 
-    - **files**: List of PDF files to merge
+    - **files**: List of PDF files to merge (2-25 files)
     """
     if len(files) < 2:
         raise HTTPException(status_code=400, detail="At least 2 PDF files required for merging")
+    
+    if len(files) > 25:
+        raise HTTPException(status_code=400, detail="Maximum 25 PDF files allowed for merging")
 
     # Create unique temp folder for this request
     import uuid
