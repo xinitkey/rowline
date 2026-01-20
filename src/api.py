@@ -29,21 +29,42 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 TEMP_DIR = Path(__file__).parent.parent / "temp"
 
 # Thread pool for heavy operations
-# On Windows use large thread pool instead of multiprocessing
 import os
-MAX_WORKERS = max(os.cpu_count() * 4, 16)  # Minimum 16 threads
-executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+import platform
 
-# Process pool for CPU-intensive tasks (limited on Windows)
+# Adaptive configuration based on platform and environment
+import os
+import platform
+
+system = platform.system()
+cpu_count = os.cpu_count() or 4  # fallback to 4 if None
+
+# Allow environment variable overrides for fine-tuning
+MAX_WORKERS = int(os.getenv('MAX_WORKERS', max(cpu_count * (8 if system != 'Windows' else 4), 16)))
+PROCESS_POOL_SIZE = int(os.getenv('PROCESS_POOL_SIZE', min(cpu_count, 16 if system != 'Windows' else 4)))
+MAX_CONCURRENT_OPERATIONS = int(os.getenv('MAX_CONCURRENT_OPERATIONS', min(cpu_count * (4 if system != 'Windows' else 2), 32 if system != 'Windows' else 8)))
+
+if system == 'Windows':
+    # Windows specific optimizations
+    print(f"[CONFIG] Windows detected - using thread-based parallelism")
+    print(f"[CONFIG] Thread pool: {MAX_WORKERS}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}")
+else:
+    # Linux/Unix full power mode
+    print(f"[CONFIG] {system} detected - using full multiprocessing power")
+    print(f"[CONFIG] Workers: auto-scaled, Thread pool: {MAX_WORKERS}, Process pool: {PROCESS_POOL_SIZE}, Concurrent ops: {MAX_CONCURRENT_OPERATIONS}")
+
+executor = ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix="pdf-worker")
+
+# Process pool for CPU-intensive tasks
 try:
-    process_executor = ProcessPoolExecutor(max_workers=min(os.cpu_count(), 4))
+    process_executor = ProcessPoolExecutor(max_workers=PROCESS_POOL_SIZE)
     USE_MULTIPROCESSING = True
-except Exception:
+except Exception as e:
+    print(f"[CONFIG] Process pool disabled: {e}")
     process_executor = None
     USE_MULTIPROCESSING = False
 
 # Semaphore to limit concurrent heavy operations
-MAX_CONCURRENT_OPERATIONS = min(os.cpu_count() * 2, 8)
 operation_semaphore = asyncio.Semaphore(MAX_CONCURRENT_OPERATIONS)
 
 # Create temp directory if it doesn't exist
@@ -62,6 +83,16 @@ async def save_file_content_async(content: bytes, path: Path) -> None:
     """Asynchronously save file content to disk."""
     async with aiofiles.open(path, 'wb') as f:
         await f.write(content)
+
+
+async def run_cpu_bound_task(func, *args, **kwargs):
+    """Run CPU-bound task in process pool if available, otherwise in thread pool."""
+    if USE_MULTIPROCESSING and process_executor:
+        return await asyncio.get_event_loop().run_in_executor(
+            process_executor, func, *args, **kwargs
+        )
+    else:
+        return await asyncio.to_thread(func, *args, **kwargs)
 
 
 async def cleanup_old_temp_files() -> None:
@@ -284,9 +315,9 @@ async def convert_xlsx_to_xml(
             output_dir = work_dir / "output"
             output_dir.mkdir(exist_ok=True)
             
-            # Perform conversion in separate thread (don't block event loop)
+            # Perform conversion in separate thread/process (CPU-bound)
             try:
-                result_files = await asyncio.to_thread(
+                result_files = await run_cpu_bound_task(
                     _do_conversion,
                     input_path,
                     output_dir,
@@ -459,9 +490,9 @@ async def convert_to_pdf(
             # Define output path
             output_path = work_dir / (input_path.stem + ".pdf")
 
-            # Convert to PDF
+            # Convert to PDF (potentially CPU-bound)
             try:
-                await asyncio.to_thread(any_to_pdf, str(input_path), str(output_path))
+                await run_cpu_bound_task(any_to_pdf, str(input_path), str(output_path))
             except UnsupportedFormat as e:
                 # Sanitize error message for HTTP response
                 safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
@@ -723,9 +754,9 @@ async def split_pdf_endpoint(
                 except ValueError as e:
                     raise HTTPException(status_code=400, detail=f"Invalid page format: {str(e)}")
 
-            # Split PDF
+            # Split PDF (potentially CPU-bound for large files)
             try:
-                output_files = await asyncio.to_thread(split_pdf, str(input_path), str(work_dir), page_list)
+                output_files = await run_cpu_bound_task(split_pdf, str(input_path), str(work_dir), page_list)
                 # Ensure all files are written to disk
                 await asyncio.sleep(0.5)
             except Exception as e:
@@ -859,10 +890,10 @@ async def merge_pdf_endpoint(
             # Wait for all files to be saved
             await asyncio.gather(*save_tasks)
 
-            # Merge PDF
+            # Merge PDF (potentially CPU-bound for large files)
             output_path = work_dir / "merged.pdf"
             try:
-                await asyncio.to_thread(merge_pdf, input_paths, str(output_path))
+                await run_cpu_bound_task(merge_pdf, input_paths, str(output_path))
             except Exception as e:
                 safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
                 raise HTTPException(status_code=500, detail=f"Merge failed: {safe_detail}")

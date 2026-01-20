@@ -81,7 +81,7 @@ CLI режим:
     # Определяем количество воркеров
     import os
     import platform
-    from src.api import MAX_WORKERS, MAX_CONCURRENT_OPERATIONS, USE_MULTIPROCESSING
+    from src.api import MAX_WORKERS, MAX_CONCURRENT_OPERATIONS, USE_MULTIPROCESSING, PROCESS_POOL_SIZE
     
     # На Windows многопроцессный режим uvicorn работает нестабильно
     # Используем 1 воркер, но с большим пулом потоков в api.py
@@ -91,7 +91,21 @@ CLI режим:
             print("  ⚠️  На Windows используется 1 воркер (ограничение uvicorn)")
             print("      Параллельность обеспечивается пулом потоков")
     else:
-        workers = args.workers if not args.reload else 1
+        # На Linux/Unix системах используем полную мощность
+        cpu_count = os.cpu_count()
+        default_workers = int(os.getenv('UVICORN_WORKERS', min(cpu_count, 8)))  # Allow env override
+        
+        if args.workers == 4:  # default
+            # Автоматически рассчитываем оптимальное количество воркеров
+            workers = default_workers
+        else:
+            workers = args.workers
+        
+        if not args.reload and workers > 1:
+            print(f"  🚀  На {platform.system()} используется {workers} воркеров uvicorn")
+            print("      Полная многопроцессная архитектура")
+    
+    workers = workers if not args.reload else 1
     
     print("=" * 50)
     print("  XLSX to XML Converter - Web Server")
@@ -103,9 +117,11 @@ CLI режим:
     print(f"  Thread Pool: {MAX_WORKERS} threads")
     print(f"  Max Concurrent Ops: {MAX_CONCURRENT_OPERATIONS}")
     if USE_MULTIPROCESSING:
-        print(f"  Process Pool: {min(os.cpu_count(), 4)} processes")
+        print(f"  Process Pool: {PROCESS_POOL_SIZE} processes")
     else:
-        print("  Process Pool: Disabled (Windows)")
+        print("  Process Pool: Disabled")
+    print(f"  Platform: {platform.system()} (optimized configuration)")
+    print("=" * 50)
     print("=" * 50)
     print("  Нажмите Ctrl+C для остановки")
     print("=" * 50)
