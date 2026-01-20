@@ -15,7 +15,7 @@ from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -607,12 +607,13 @@ async def download_session_zip(session_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to create ZIP: {str(e)}")
     
     zip_buffer.seek(0)
+    zip_data = zip_buffer.read()
     
     # Generate safe filename
     safe_zip_filename = f"files_{session_id[:8]}.zip"
     
-    return StreamingResponse(
-        zip_buffer,
+    return Response(
+        content=zip_data,
         media_type="application/zip",
         headers={
             "Content-Disposition": f'attachment; filename="{safe_zip_filename}"'
