@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (convertBtn) convertBtn.remove();
         resultSection.style.display = 'none';
         hideError();
+        
+        // Show appropriate button for current operation
+        showConvertButton();
     }
     function formatFileSize(bytes) {
         if (bytes === 0) return '0 Bytes';
