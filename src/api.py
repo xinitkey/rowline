@@ -448,6 +448,8 @@ async def split_pdf_endpoint(
         # Split PDF
         try:
             output_files = await asyncio.to_thread(split_pdf, str(input_path), str(work_dir), page_list)
+            # Ensure all files are written to disk
+            await asyncio.sleep(0.5)
         except Exception as e:
             safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
             raise HTTPException(status_code=500, detail=f"Split failed: {safe_detail}")
@@ -457,30 +459,27 @@ async def split_pdf_endpoint(
 
         # If multiple files, create ZIP archive
         if len(output_files) > 1:
-            zip_path = work_dir / "split_pages.zip"
-            import zipfile
-            import time
+            import tarfile
             
-            # Small delay to ensure files are written
-            time.sleep(0.1)
+            tar_path = work_dir / "split_pages.tar.gz"
             
-            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            with tarfile.open(tar_path, "w:gz") as tar:
                 for pdf_file_path in output_files:
                     if os.path.exists(pdf_file_path):
-                        # Use only basename for ZIP entry
-                        zipf.write(pdf_file_path, os.path.basename(pdf_file_path))
+                        # Add file with basename only
+                        tar.add(pdf_file_path, arcname=os.path.basename(pdf_file_path))
                     else:
                         raise HTTPException(status_code=500, detail=f"Output file not found: {os.path.basename(pdf_file_path)}")
             
-            if not zip_path.exists():
-                raise HTTPException(status_code=500, detail="Failed to create ZIP archive")
+            if not tar_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create archive")
             
             return FileResponse(
-                path=zip_path,
-                filename="split_pages.zip",
-                media_type="application/zip",
+                path=tar_path,
+                filename="split_pages.tar.gz",
+                media_type="application/gzip",
                 headers={
-                    "Content-Disposition": 'attachment; filename="split_pages.zip"'
+                    "Content-Disposition": 'attachment; filename="split_pages.tar.gz"'
                 }
             )
         else:

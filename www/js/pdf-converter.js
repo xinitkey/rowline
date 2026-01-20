@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const file = fileInput.files[0];
                 downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
             } else if (operation === 'split') {
-                downloadLink.download = 'split_pages.zip';
+                downloadLink.download = 'split_pages.tar.gz';
             } else if (operation === 'merge') {
                 downloadLink.download = 'merged.pdf';
             }
