@@ -5,6 +5,7 @@ Provides REST API for file conversion.
 """
 
 import io
+import zipfile
 import tempfile
 import shutil
 import asyncio
@@ -531,6 +532,47 @@ async def serve_convert_file(session_id: str, filename: str):
         media_type="application/xml",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )
+
+
+@app.get("/download-zip/{session_id}")
+async def download_session_zip(session_id: str):
+    """Download all files from a session as ZIP archive."""
+    # Check all possible session stores
+    session_info = None
+    
+    # Check split PDF sessions
+    if hasattr(split_pdf_endpoint, 'sessions'):
+        session_info = split_pdf_endpoint.sessions.get(session_id)
+    
+    # Check convert XLSX sessions
+    if not session_info and hasattr(convert_xlsx_to_xml, 'sessions'):
+        session_info = convert_xlsx_to_xml.sessions.get(session_id)
+    
+    if not session_info:
+        raise HTTPException(status_code=404, detail="Session not found or expired")
+    
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file_info in session_info['files']:
+            file_path = TEMP_DIR / session_id / file_info['filename']
+            if file_path.exists():
+                # Add file to ZIP with its filename
+                zf.write(file_path, file_info['filename'])
+    
+    zip_buffer.seek(0)
+    
+    # Generate safe filename
+    safe_zip_filename = f"files_{session_id[:8]}.zip"
+    
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_zip_filename}"'
         }
     )
 

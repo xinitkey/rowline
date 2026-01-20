@@ -191,6 +191,11 @@ document.addEventListener('DOMContentLoaded', function() {
         resultSection.innerHTML = `
             <h2>Split Result</h2>
             <p>${result.message}</p>
+            <div style="margin-bottom: 1rem;">
+                <a href="/download-zip/${result.session_id}" class="download-link" style="background: #28a745; margin-right: 1rem;">
+                    📦 Download All as ZIP
+                </a>
+            </div>
             <div class="file-list">
                 ${result.files.map(file => `
                     <div class="file-item">

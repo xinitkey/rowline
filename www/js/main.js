@@ -547,7 +547,7 @@ class XlsxConverter {
             if (contentType && contentType.includes('application/json')) {
                 // Multiple files - show download links
                 const data = await response.json();
-                this.showMultipleResults(data.files, data.message);
+                this.showMultipleResults(data.files, data.message, data.session_id);
                 console.log(`✓ Conversion complete: ${data.message}`);
             } else {
                 // Single file - direct download
@@ -624,7 +624,7 @@ class XlsxConverter {
     /**
      * Show multiple conversion results
      */
-    showMultipleResults(files, message) {
+    showMultipleResults(files, message, sessionId) {
         if (this.resultSection) {
             this.resultSection.style.display = 'block';
         }
@@ -638,6 +638,19 @@ class XlsxConverter {
             messageDiv.style.marginBottom = '1rem';
             messageDiv.style.fontWeight = 'bold';
             this.downloadLink.appendChild(messageDiv);
+            
+            // Add ZIP download button if sessionId provided
+            if (sessionId) {
+                const zipButton = document.createElement('a');
+                zipButton.href = `/download-zip/${sessionId}`;
+                zipButton.textContent = '📦 Download All as ZIP';
+                zipButton.className = 'download-link';
+                zipButton.style.background = '#28a745';
+                zipButton.style.marginRight = '1rem';
+                zipButton.style.marginBottom = '1rem';
+                zipButton.style.display = 'inline-block';
+                this.downloadLink.appendChild(zipButton);
+            }
             
             // Add file list
             const fileList = document.createElement('div');
