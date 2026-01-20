@@ -15,12 +15,12 @@ from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import aiofiles
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, UnsupportedFormat, split_pdf, merge_pdf
+from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, any_to_pdf_async, ConversionProgress, UnsupportedFormat, split_pdf, merge_pdf
 
 # Path to static files (frontend)
 STATIC_DIR = Path(__file__).parent.parent / "www"
@@ -67,6 +67,9 @@ except Exception as e:
 # Semaphore to limit concurrent heavy operations
 operation_semaphore = asyncio.Semaphore(MAX_CONCURRENT_OPERATIONS)
 
+# Global dictionary to track conversion progress
+_conversion_progress: dict[str, ConversionProgress] = {}
+
 # Create temp directory if it doesn't exist
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -95,30 +98,17 @@ async def run_cpu_bound_task(func, *args, **kwargs):
         return await asyncio.to_thread(func, *args, **kwargs)
 
 
-async def cleanup_old_temp_files() -> None:
-    """Asynchronously clean up old temporary files."""
-    try:
-        cutoff_time = asyncio.get_event_loop().time() - 3600  # 1 hour ago
-        
-        for temp_dir in TEMP_DIR.iterdir():
-            if temp_dir.is_dir():
-                try:
-                    # Check if directory is old
-                    stat = temp_dir.stat()
-                    if stat.st_mtime < cutoff_time:
-                        await asyncio.to_thread(shutil.rmtree, temp_dir)
-                        print(f"[CLEANUP] Removed old temp directory: {temp_dir}")
-                except Exception as e:
-                    print(f"[CLEANUP] Error removing {temp_dir}: {e}")
-    except Exception as e:
-        print(f"[CLEANUP] Error during cleanup: {e}")
+async def cleanup_conversion_progress(request_id: str) -> None:
+    """Clean up conversion progress tracking after a delay."""
+    await asyncio.sleep(300)  # Keep progress for 5 minutes
+    _conversion_progress.pop(request_id, None)
 
 
 # Start background cleanup task
 async def start_background_cleanup():
     """Start background task for cleaning up old temp files."""
     while True:
-        await cleanup_old_temp_files()
+        cleanup_temp_files()
         await asyncio.sleep(1800)  # Run every 30 minutes
 
 
@@ -457,10 +447,11 @@ async def delete_template(filename: str):
 
 @app.post("/api/convert-to-pdf")
 async def convert_to_pdf(
-    file: UploadFile = File(..., description="File to convert to PDF")
+    file: UploadFile = File(..., description="File to convert to PDF"),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
-    Convert any supported file to PDF.
+    Convert any supported file to PDF with async processing and progress tracking.
 
     Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
     """
@@ -472,38 +463,50 @@ async def convert_to_pdf(
         work_dir = TEMP_DIR / request_id
         work_dir.mkdir(parents=True, exist_ok=True)
 
+        # Initialize progress tracking
+        progress = ConversionProgress(total_steps=1)
+        _conversion_progress[request_id] = progress
+
         try:
-            # Save uploaded file
+            # Save uploaded file asynchronously
             input_path = work_dir / file.filename
             content = await file.read()
-            
+
             # Check file size (limit to 500MB)
             file_size = len(content)
             if file_size > 500 * 1024 * 1024:  # 500MB limit
                 raise HTTPException(
-                    status_code=413, 
+                    status_code=413,
                     detail="File too large. Maximum size is 500MB."
                 )
-            
+
             await save_file_content_async(content, input_path)
 
             # Define output path
             output_path = work_dir / (input_path.stem + ".pdf")
 
-            # Convert to PDF (potentially CPU-bound)
+            # Convert to PDF asynchronously with progress tracking
             try:
-                await run_cpu_bound_task(any_to_pdf, str(input_path), str(output_path))
+                await any_to_pdf_async(str(input_path), str(output_path), progress)
             except UnsupportedFormat as e:
+                # Clean up progress tracking
+                _conversion_progress.pop(request_id, None)
                 # Sanitize error message for HTTP response
                 safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
                 raise HTTPException(status_code=400, detail=safe_detail)
             except Exception as e:
+                # Clean up progress tracking
+                _conversion_progress.pop(request_id, None)
                 # Sanitize error message for HTTP response
                 safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
                 raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
 
             if not output_path.exists():
+                _conversion_progress.pop(request_id, None)
                 raise HTTPException(status_code=500, detail="Failed to create PDF file")
+
+            # Schedule cleanup of progress tracking
+            background_tasks.add_task(cleanup_conversion_progress, request_id)
 
             # Sanitize filename for HTTP headers (ASCII only)
             safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
@@ -519,10 +522,123 @@ async def convert_to_pdf(
                 }
             )
 
+        except Exception as e:
+            # Clean up on any error
+            _conversion_progress.pop(request_id, None)
+            raise
+
         except HTTPException:
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/batch-convert-to-pdf")
+async def batch_convert_to_pdf(
+    files: list[UploadFile] = File(..., description="Files to convert to PDF (up to 10 files)"),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    """
+    Convert multiple files to PDF concurrently with progress tracking.
+
+    Supported formats: PDF, HTML, XML, XLSX, XLS, DOCX, JPG, JPEG, PNG, BMP, TIFF, TXT, PY, LOG, MD
+    Maximum 10 files per request for optimal performance.
+    """
+    if len(files) == 0:
+        raise HTTPException(status_code=400, detail="At least 1 file required")
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 files allowed for batch conversion")
+
+    # Limit concurrent operations (use more restrictive semaphore for batch)
+    batch_semaphore = asyncio.Semaphore(min(MAX_CONCURRENT_OPERATIONS // 2, 2))
+    async with batch_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        # Initialize progress tracking for batch
+        progress = ConversionProgress(total_steps=len(files))
+        _conversion_progress[request_id] = progress
+
+        try:
+            # Save all files and prepare conversion tasks
+            conversion_tasks = []
+            file_info = []
+
+            for i, file in enumerate(files):
+                # Read file content
+                content = await file.read()
+                file_size = len(content)
+
+                if file_size > 200 * 1024 * 1024:  # 200MB limit per file for batch
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File {file.filename} too large. Maximum size is 200MB per file in batch mode."
+                    )
+
+                # Save file
+                input_path = work_dir / f"input_{i}_{file.filename}"
+                await save_file_content_async(content, input_path)
+
+                # Prepare output path
+                output_path = work_dir / f"output_{i}_{input_path.stem}.pdf"
+                file_info.append((file.filename, str(output_path)))
+
+                # Create conversion task
+                task = any_to_pdf_async(str(input_path), str(output_path), None)
+                conversion_tasks.append(task)
+
+            # Convert all files concurrently
+            progress.update(0, f"Converting {len(files)} files concurrently...")
+            try:
+                await asyncio.gather(*conversion_tasks, return_exceptions=True)
+            except Exception as e:
+                _conversion_progress.pop(request_id, None)
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Batch conversion failed: {safe_detail}")
+
+            # Check results and create ZIP archive
+            successful_conversions = []
+            for original_name, output_path in file_info:
+                if os.path.exists(output_path):
+                    successful_conversions.append((original_name, output_path))
+                else:
+                    print(f"[BATCH] Failed to convert: {original_name}")
+
+            if not successful_conversions:
+                _conversion_progress.pop(request_id, None)
+                raise HTTPException(status_code=500, detail="All conversions failed")
+
+            # Create ZIP archive with all converted PDFs
+            import zipfile
+            zip_path = work_dir / "batch_converted.zip"
+
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for original_name, pdf_path in successful_conversions:
+                    # Use original filename but ensure .pdf extension
+                    pdf_name = os.path.splitext(original_name)[0] + ".pdf"
+                    zipf.write(pdf_path, pdf_name)
+
+            progress.update(1, f"Successfully converted {len(successful_conversions)} files")
+
+            # Schedule cleanup
+            background_tasks.add_task(cleanup_conversion_progress, request_id)
+
+            return FileResponse(
+                path=zip_path,
+                filename="batch_converted.zip",
+                media_type="application/zip",
+                headers={
+                    "Content-Disposition": 'attachment; filename="batch_converted.zip"'
+                }
+            )
+
+        except Exception as e:
+            # Clean up on any error
+            _conversion_progress.pop(request_id, None)
+            raise
 
 
 def parse_page_ranges(pages_str: str) -> list[int]:
@@ -914,6 +1030,25 @@ async def merge_pdf_endpoint(
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/conversion-progress/{request_id}")
+async def get_conversion_progress(request_id: str):
+    """
+    Get conversion progress for a specific request.
+    Returns current step and status message.
+    """
+    progress = _conversion_progress.get(request_id)
+    if not progress:
+        raise HTTPException(status_code=404, detail="Conversion not found or completed")
+
+    step, status = progress.get_progress()
+    return {
+        "request_id": request_id,
+        "progress": step,
+        "status": status,
+        "completed": step >= 1
+    }
 
 
 # Mount static files (frontend)

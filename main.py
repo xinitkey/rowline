@@ -88,7 +88,7 @@ CLI режим:
     if platform.system() == 'Windows':
         workers = 1
         if args.workers > 1:
-            print("  ⚠️  На Windows используется 1 воркер (ограничение uvicorn)")
+            print("  [WARNING] On Windows using 1 worker (uvicorn limitation)")
             print("      Параллельность обеспечивается пулом потоков")
     else:
         # На Linux/Unix системах используем полную мощность
@@ -102,7 +102,7 @@ CLI режим:
             workers = args.workers
         
         if not args.reload and workers > 1:
-            print(f"  🚀  На {platform.system()} используется {workers} воркеров uvicorn")
+            print(f"  [INFO] On {platform.system()} using {workers} uvicorn workers")
             print("      Полная многопроцессная архитектура")
     
     workers = workers if not args.reload else 1
@@ -123,7 +123,7 @@ CLI режим:
     print(f"  Platform: {platform.system()} (optimized configuration)")
     print("=" * 50)
     print("=" * 50)
-    print("  Нажмите Ctrl+C для остановки")
+    print("  Press Ctrl+C to stop")
     print("=" * 50)
     
     uvicorn.run(
