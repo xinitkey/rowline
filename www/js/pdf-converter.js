@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function updateOperationUI() {
         const operation = document.querySelector('input[name="operation"]:checked').value;
+        console.log('updateOperationUI called, operation:', operation);
+        
         const label = uploadContainer.querySelector('.btn-upload');
         const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
         const otherInput = operation === 'merge' ? pdfFile : pdfFiles;
@@ -45,6 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fileInput.accept = ".pdf,.html,.htm,.xml,.xlsx,.xls,.docx,.jpg,.jpeg,.png,.bmp,.tif,.tiff,.txt,.py,.log,.md";
             splitOptions.style.display = 'none';
         } else if (operation === 'split') {
+            console.log('Setting split options to block');
             label.innerHTML = `
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -56,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             fileInput.accept = ".pdf";
             splitOptions.style.display = 'block';
+            console.log('splitOptions display set to block');
         } else if (operation === 'merge') {
             label.innerHTML = `
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

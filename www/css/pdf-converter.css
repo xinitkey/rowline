@@ -52,3 +52,11 @@
     border-radius: 4px;
     font-size: 1rem;
 }
+
+.help-text {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+}

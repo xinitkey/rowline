@@ -405,6 +405,47 @@ async def convert_to_pdf(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def parse_page_ranges(pages_str: str) -> list[int]:
+    """
+    Parse page ranges from string like "1,3-5,8"
+    Returns list of page numbers (1-based)
+    """
+    pages = set()
+    
+    for part in pages_str.split(','):
+        part = part.strip()
+        if not part:
+            continue
+            
+        if '-' in part:
+            # Range like "3-5"
+            start_end = part.split('-')
+            if len(start_end) != 2:
+                raise ValueError(f"Invalid range format: {part}")
+            
+            try:
+                start = int(start_end[0].strip())
+                end = int(start_end[1].strip())
+                
+                if start < 1 or end < 1 or start > end:
+                    raise ValueError(f"Invalid range: {start}-{end}")
+                
+                pages.update(range(start, end + 1))
+            except ValueError:
+                raise ValueError(f"Invalid numbers in range: {part}")
+        else:
+            # Single page like "1"
+            try:
+                page = int(part)
+                if page < 1:
+                    raise ValueError(f"Page number must be positive: {page}")
+                pages.add(page)
+            except ValueError:
+                raise ValueError(f"Invalid page number: {part}")
+    
+    return sorted(list(pages))
+
+
 @app.post("/api/split-pdf")
 async def split_pdf_endpoint(
     file: UploadFile = File(..., description="PDF file to split"),
@@ -441,9 +482,9 @@ async def split_pdf_endpoint(
         page_list = None
         if pages.strip():
             try:
-                page_list = [int(p.strip()) for p in pages.split(",") if p.strip()]
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid page numbers format")
+                page_list = parse_page_ranges(pages.strip())
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid page format: {str(e)}")
 
         # Split PDF
         try:
