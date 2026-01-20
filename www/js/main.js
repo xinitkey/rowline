@@ -544,9 +544,11 @@ class XlsxConverter {
 
             // Check if response is JSON (multiple files) or blob (single file)
             const contentType = response.headers.get('content-type');
+            console.log(`[JS] Convert response content-type: ${contentType}`);
             if (contentType && contentType.includes('application/json')) {
                 // Multiple files - show download links
                 const data = await response.json();
+                console.log(`[JS] Convert result:`, data);
                 this.showMultipleResults(data.files, data.message, data.session_id);
                 console.log(`✓ Conversion complete: ${data.message}`);
             } else {

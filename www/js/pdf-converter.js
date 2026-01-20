@@ -278,9 +278,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             if (operation === 'split') {
-                // For split operation, show download links for individual files
-                const result = await response.json();
-                showSplitResult(result);
+                // Check if response is JSON (multiple files) or blob (single file/error)
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    showSplitResult(result);
+                } else {
+                    // Single file or error - download directly
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    downloadLink.href = url;
+                    downloadLink.download = 'split_result.pdf';
+                    downloadLink.textContent = 'Download Split PDF';
+                    downloadLink.style.display = 'inline-block';
+                    resultSection.style.display = 'block';
+                }
             } else {
                 // For convert and merge, download the file directly
                 const blob = await response.blob();
