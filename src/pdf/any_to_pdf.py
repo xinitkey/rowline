@@ -346,10 +346,40 @@ def docx_to_pdf(input_path: str, output_path: str) -> None:
     
     # Find LibreOffice command
     libreoffice_cmd = None
-    for cmd in ["libreoffice", "soffice"]:
-        if shutil.which(cmd):
-            libreoffice_cmd = cmd
-            break
+    import platform
+    if platform.system() == 'Linux':
+        # Check common Linux installation paths
+        possible_paths = [
+            "/usr/bin/soffice",
+            "/usr/bin/libreoffice",
+            "/usr/local/bin/soffice",
+            "/usr/local/bin/libreoffice",
+            "/opt/libreoffice/program/soffice",
+            "/snap/bin/soffice",  # Snap installation
+            "/snap/bin/libreoffice",
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                libreoffice_cmd = path
+                break
+    elif platform.system() == 'Windows':
+        # Check common Windows installation paths
+        possible_paths = [
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            r"C:\Program Files\LibreOffice 7\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice 7\program\soffice.exe",
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                libreoffice_cmd = path
+                break
+    # Also check PATH
+    if not libreoffice_cmd:
+        for cmd in ["libreoffice", "soffice", "libreoffice.exe", "soffice.exe"]:
+            if shutil.which(cmd):
+                libreoffice_cmd = cmd
+                break
     
     if not libreoffice_cmd:
         raise UnsupportedFormat(
@@ -451,10 +481,40 @@ def excel_to_pdf(input_path: str, output_path: str) -> None:
     
     # Find LibreOffice command
     libreoffice_cmd = None
-    for cmd in ["libreoffice", "soffice"]:
-        if shutil.which(cmd):
-            libreoffice_cmd = cmd
-            break
+    import platform
+    if platform.system() == 'Linux':
+        # Check common Linux installation paths
+        possible_paths = [
+            "/usr/bin/soffice",
+            "/usr/bin/libreoffice",
+            "/usr/local/bin/soffice",
+            "/usr/local/bin/libreoffice",
+            "/opt/libreoffice/program/soffice",
+            "/snap/bin/soffice",  # Snap installation
+            "/snap/bin/libreoffice",
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                libreoffice_cmd = path
+                break
+    elif platform.system() == 'Windows':
+        # Check common Windows installation paths
+        possible_paths = [
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            r"C:\Program Files\LibreOffice 7\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice 7\program\soffice.exe",
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                libreoffice_cmd = path
+                break
+    # Also check PATH
+    if not libreoffice_cmd:
+        for cmd in ["libreoffice", "soffice", "libreoffice.exe", "soffice.exe"]:
+            if shutil.which(cmd):
+                libreoffice_cmd = cmd
+                break
     
     if not libreoffice_cmd:
         # Try alternative conversion method using openpyxl + reportlab
