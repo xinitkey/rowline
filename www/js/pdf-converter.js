@@ -89,11 +89,14 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Show file information below upload area
      */
-    function showFileInfo(file) {
+    function showFileInfo(files) {
         // Remove existing info
         const existing = document.getElementById('fileInfo');
         if (existing) existing.remove();
 
+        const operation = document.querySelector('input[name="operation"]:checked').value;
+        const isMultiple = operation === 'merge';
+        
         const info = document.createElement('div');
         info.id = 'fileInfo';
         info.className = 'file-selected';
@@ -110,22 +113,37 @@ document.addEventListener('DOMContentLoaded', function() {
         info.style.borderRadius = '999px';
         info.style.fontSize = '0.9rem';
 
-        info.innerHTML = `
-            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                <strong>📄 ${file.name}</strong>
-                <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
-            </div>
-            <button class="remove-file-btn" type="button" title="Remove file" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
-                ✕
-            </button>
-        `;
+        if (isMultiple) {
+            const totalSize = Array.from(files).reduce((sum, file) => sum + file.size, 0);
+            info.innerHTML = `
+                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <strong>📄 ${files.length} files selected</strong>
+                    <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(totalSize)} total)</span>
+                </div>
+                <button class="remove-file-btn" type="button" title="Remove files" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
+                    ✕
+                </button>
+            `;
+        } else {
+            const file = files[0];
+            info.innerHTML = `
+                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <strong>📄 ${file.name}</strong>
+                    <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
+                </div>
+                <button class="remove-file-btn" type="button" title="Remove file" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
+                    ✕
+                </button>
+            `;
+        }
 
         uploadContainer.appendChild(info);
 
         // Add remove button handler
         const removeBtn = info.querySelector('.remove-file-btn');
         removeBtn.addEventListener('click', () => {
-            pdfFile.value = '';
+            const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
+            fileInput.value = '';
             info.remove();
             const convertBtn = document.getElementById('convertPdfBtn');
             if (convertBtn) convertBtn.remove();
@@ -145,11 +163,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const existing = document.getElementById('convertPdfBtn');
         if (existing) existing.remove();
 
+        const operation = document.querySelector('input[name="operation"]:checked').value;
         const btn = document.createElement('button');
         btn.id = 'convertPdfBtn';
         btn.type = 'button';
         btn.className = 'convert-btn';
-        btn.textContent = 'Convert to PDF';
+        btn.textContent = operation === 'convert' ? 'Convert to PDF' :
+                         operation === 'split' ? 'Split PDF' : 'Merge PDFs';
         btn.style.marginTop = '1rem';
         btn.addEventListener('click', handleConvert);
         
@@ -160,19 +180,36 @@ document.addEventListener('DOMContentLoaded', function() {
      * Handle conversion
      */
     async function handleConvert() {
-        if (!pdfFile.files || pdfFile.files.length === 0) {
+        const operation = document.querySelector('input[name="operation"]:checked').value;
+        const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
             showError('Please select a file');
             return;
         }
 
-        const file = pdfFile.files[0];
         const formData = new FormData();
-        formData.append('file', file);
+        
+        if (operation === 'merge') {
+            // Add all files for merge
+            for (let file of fileInput.files) {
+                formData.append('files', file);
+            }
+        } else {
+            // Single file for convert or split
+            formData.append('file', fileInput.files[0]);
+            
+            // Add pages parameter for split
+            if (operation === 'split' && pagesInput.value.trim()) {
+                formData.append('pages', pagesInput.value.trim());
+            }
+        }
 
         const convertBtn = document.getElementById('convertPdfBtn');
         if (convertBtn) {
             convertBtn.disabled = true;
-            convertBtn.textContent = 'Converting...';
+            convertBtn.textContent = operation === 'convert' ? 'Converting...' : 
+                                   operation === 'split' ? 'Splitting...' : 'Merging...';
         }
 
         try {
@@ -183,7 +220,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
 
-            const response = await fetch('/api/convert-to-pdf', {
+            // Choose the correct API endpoint
+            const endpoint = operation === 'convert' ? '/api/convert-to-pdf' :
+                           operation === 'split' ? '/api/split-pdf' : '/api/merge-pdf';
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
                 signal: controller.signal
@@ -192,7 +233,8 @@ document.addEventListener('DOMContentLoaded', function() {
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                let errorMsg = 'Conversion failed';
+                let errorMsg = operation === 'convert' ? 'Conversion failed' :
+                             operation === 'split' ? 'Split failed' : 'Merge failed';
                 try {
                     const error = await response.json();
                     errorMsg = error.detail || errorMsg;
@@ -206,20 +248,30 @@ document.addEventListener('DOMContentLoaded', function() {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             downloadLink.href = url;
-            downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
+            
+            // Set appropriate filename
+            if (operation === 'convert') {
+                const file = fileInput.files[0];
+                downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
+            } else if (operation === 'split') {
+                downloadLink.download = 'split_pages.zip';
+            } else if (operation === 'merge') {
+                downloadLink.download = 'merged.pdf';
+            }
             
             resultSection.style.display = 'block';
 
         } catch (err) {
             let message = 'Error: ' + err.message;
             if (err.name === 'AbortError') {
-                message = 'Error: Conversion timed out. The file may be too large or complex. Please try with a smaller file.';
+                message = 'Error: Operation timed out. The file(s) may be too large or complex. Please try with smaller file(s).';
             }
             showError(message);
         } finally {
             if (convertBtn) {
                 convertBtn.disabled = false;
-                convertBtn.textContent = 'Convert to PDF';
+                convertBtn.textContent = operation === 'convert' ? 'Convert to PDF' :
+                                       operation === 'split' ? 'Split PDF' : 'Merge PDFs';
             }
         }
     }
@@ -261,13 +313,58 @@ document.addEventListener('DOMContentLoaded', function() {
         hideError();
 
         // Show file info
-        showFileInfo(file);
+        showFileInfo([file]);
 
         console.log(`✓ File selected: ${file.name} (${formatFileSize(file.size)})`);
     });
 
+    // Handle multiple file selection for merge
+    pdfFiles.addEventListener('change', function() {
+        if (!this.files || this.files.length === 0) {
+            return;
+        }
+
+        // Validate file count
+        if (this.files.length < 2) {
+            showError('Please select at least 2 PDF files to merge');
+            pdfFiles.value = '';
+            return;
+        }
+
+        // Validate file sizes (max 100MB each)
+        const maxSize = 100 * 1024 * 1024;
+        for (let file of this.files) {
+            if (file.size > maxSize) {
+                showError('One or more files are too large. Maximum size: 100MB per file');
+                pdfFiles.value = '';
+                return;
+            }
+        }
+
+        // Clear previous results and errors
+        resultSection.style.display = 'none';
+        hideError();
+
+        // Show file info
+        showFileInfo(Array.from(this.files));
+
+        console.log(`✓ ${this.files.length} files selected for merge`);
+    });
+
+    // Handle operation selection
+    operationRadios.forEach(radio => {
+        radio.addEventListener('change', updateOperationUI);
+    });
+
+    // Initialize UI
+    updateOperationUI();
+
     // Drag and Drop functionality
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        uploadContainer.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        }, false);
         uploadContainer.addEventListener(eventName, (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -289,12 +386,18 @@ document.addEventListener('DOMContentLoaded', function() {
     uploadContainer.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
+        const operation = document.querySelector('input[name="operation"]:checked').value;
 
         if (files.length > 0) {
-            pdfFile.files = files;
-            // Trigger the selection handler manually
-            const event = new Event('change', { bubbles: true });
-            pdfFile.dispatchEvent(event);
+            if (operation === 'merge') {
+                pdfFiles.files = files;
+                const event = new Event('change', { bubbles: true });
+                pdfFiles.dispatchEvent(event);
+            } else {
+                pdfFile.files = files;
+                const event = new Event('change', { bubbles: true });
+                pdfFile.dispatchEvent(event);
+            }
         }
     }, false);
 
