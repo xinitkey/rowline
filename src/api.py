@@ -1013,9 +1013,12 @@ async def merge_pdf_endpoint(
                         detail=f"File {file.filename} too large. Maximum size is 500MB per file."
                     )
             
-            # Save files concurrently
-            for filename, content in file_contents:
-                input_path = work_dir / filename
+            # Save files concurrently with unique names
+            for i, (filename, content) in enumerate(file_contents):
+                # Generate unique filename to avoid conflicts
+                name, ext = os.path.splitext(filename)
+                unique_filename = f"{name}_{i}{ext}"
+                input_path = work_dir / unique_filename
                 save_tasks.append(save_file_content_async(content, input_path))
                 input_paths.append(str(input_path))
             
