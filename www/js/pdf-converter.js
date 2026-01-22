@@ -88,12 +88,40 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show appropriate button for current operation
         showConvertButton();
     }
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    /**
+     * Remove specific file from merge list
+     */
+    function removeFileFromMerge(index) {
+        // Create new FileList without the removed file
+        const dt = new DataTransfer();
+        const currentFiles = Array.from(pdfFiles.files);
+        
+        currentFiles.forEach((file, i) => {
+            if (i !== index) {
+                dt.items.add(file);
+            }
+        });
+        
+        pdfFiles.files = dt.files;
+        
+        // Update UI
+        if (pdfFiles.files.length === 0) {
+            const existing = document.getElementById('fileInfo');
+            if (existing) existing.remove();
+            const convertBtn = document.getElementById('convertPdfBtn');
+            if (convertBtn) convertBtn.remove();
+            resultSection.style.display = 'none';
+            hideError();
+        } else if (pdfFiles.files.length === 1) {
+            showError('Please select at least 2 PDF files to merge');
+            pdfFiles.value = '';
+            const existing = document.getElementById('fileInfo');
+            if (existing) existing.remove();
+            const convertBtn = document.getElementById('convertPdfBtn');
+            if (convertBtn) convertBtn.remove();
+        } else {
+            showFileInfo(Array.from(pdfFiles.files));
+        }
     }
 
     /**
@@ -112,28 +140,42 @@ document.addEventListener('DOMContentLoaded', function() {
         info.className = 'file-selected';
         
         // Apply styles
-        info.style.display = 'flex';
-        info.style.alignItems = 'center';
-        info.style.justifyContent = 'space-between';
-        info.style.maxWidth = '100%';
-        info.style.gap = '10px';
         info.style.marginTop = '1rem';
-        info.style.padding = '0.5rem 1rem';
-        info.style.backgroundColor = '#e3f2fd';
-        info.style.borderRadius = '999px';
-        info.style.fontSize = '0.9rem';
+        info.style.maxWidth = '100%';
 
         if (isMultiple) {
-            const totalSize = Array.from(files).reduce((sum, file) => sum + file.size, 0);
-            info.innerHTML = `
-                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <strong>📄 ${files.length} files selected</strong>
-                    <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(totalSize)} total)</span>
-                </div>
-                <button class="remove-file-btn" type="button" title="Remove files" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
-                    ✕
-                </button>
-            `;
+            // Create a list of files for merge operation
+            info.innerHTML = '<div style="font-weight: bold; margin-bottom: 0.5rem;">📄 Selected files for merge:</div>';
+            
+            const fileList = document.createElement('div');
+            fileList.style.display = 'flex';
+            fileList.style.flexDirection = 'column';
+            fileList.style.gap = '0.5rem';
+            
+            Array.from(files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.style.display = 'flex';
+                fileItem.style.alignItems = 'center';
+                fileItem.style.justifyContent = 'space-between';
+                fileItem.style.padding = '0.5rem 1rem';
+                fileItem.style.backgroundColor = '#e3f2fd';
+                fileItem.style.borderRadius = '8px';
+                fileItem.style.fontSize = '0.9rem';
+                
+                fileItem.innerHTML = `
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <strong>${file.name}</strong>
+                        <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
+                    </div>
+                    <button class="remove-file-btn" type="button" data-index="${index}" title="Remove this file" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
+                        ✕
+                    </button>
+                `;
+                
+                fileList.appendChild(fileItem);
+            });
+            
+            info.appendChild(fileList);
         } else {
             const file = files[0];
             info.innerHTML = `
@@ -149,16 +191,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         uploadContainer.appendChild(info);
 
-        // Add remove button handler
-        const removeBtn = info.querySelector('.remove-file-btn');
-        removeBtn.addEventListener('click', () => {
-            const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
-            fileInput.value = '';
-            info.remove();
-            const convertBtn = document.getElementById('convertPdfBtn');
-            if (convertBtn) convertBtn.remove();
-            resultSection.style.display = 'none';
-            errorSection.style.display = 'none';
+        // Add remove button handlers
+        const removeBtns = info.querySelectorAll('.remove-file-btn');
+        removeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                if (isMultiple) {
+                    // Remove specific file from merge list
+                    const index = parseInt(e.target.getAttribute('data-index'));
+                    removeFileFromMerge(index);
+                } else {
+                    // Remove single file
+                    const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
+                    fileInput.value = '';
+                    info.remove();
+                    const convertBtn = document.getElementById('convertPdfBtn');
+                    if (convertBtn) convertBtn.remove();
+                    resultSection.style.display = 'none';
+                    hideError();
+                }
+            });
         });
 
         // Show convert button
@@ -225,9 +276,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Check file count limit for merge
-        if (operation === 'merge' && fileInput.files.length > 25) {
-            showError('Maximum 25 PDF files allowed for merging');
-            return;
+        if (operation === 'merge') {
+            if (fileInput.files.length < 2) {
+                showError('Please select at least 2 PDF files to merge');
+                return;
+            }
+            if (fileInput.files.length > 25) {
+                showError('Maximum 25 PDF files allowed for merging');
+                return;
+            }
         }
 
         const formData = new FormData();
@@ -383,12 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Validate file count
-        if (this.files.length < 2) {
-            showError('Please select at least 2 PDF files to merge');
-            pdfFiles.value = '';
-            return;
-        }
-
         if (this.files.length > 25) {
             showError('Maximum 25 PDF files allowed for merging');
             pdfFiles.value = '';
