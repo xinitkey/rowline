@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function updateOperationUI() {
         const operation = document.querySelector('input[name="operation"]:checked').value;
-        console.log('updateOperationUI called, operation:', operation);
         
         const label = uploadContainer.querySelector('.btn-upload');
         const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
@@ -75,6 +74,30 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             fileInput.accept = ".pdf";
             splitOptions.style.display = 'none';
+            
+            // For merge mode, add an additional "Add more files" button
+            setTimeout(() => {
+                const addMoreBtn = document.createElement('button');
+                addMoreBtn.id = 'addMoreFilesBtn';
+                addMoreBtn.type = 'button';
+                addMoreBtn.className = 'btn-secondary';
+                addMoreBtn.textContent = 'Add More Files';
+                addMoreBtn.style.marginTop = '0.5rem';
+                addMoreBtn.style.padding = '0.5rem 1rem';
+                addMoreBtn.style.backgroundColor = '#6c757d';
+                addMoreBtn.style.color = 'white';
+                addMoreBtn.style.border = 'none';
+                addMoreBtn.style.borderRadius = '4px';
+                addMoreBtn.style.cursor = 'pointer';
+                addMoreBtn.addEventListener('click', () => {
+                    fileInput.click();
+                });
+                
+                const existingAddMore = document.getElementById('addMoreFilesBtn');
+                if (existingAddMore) existingAddMore.remove();
+                
+                uploadContainer.appendChild(addMoreBtn);
+            }, 100);
         }
         
         // Clear current file selection
@@ -119,6 +142,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (existing) existing.remove();
             const convertBtn = document.getElementById('convertPdfBtn');
             if (convertBtn) convertBtn.remove();
+            const addMoreBtn = document.getElementById('addMoreFilesBtn');
+            if (addMoreBtn) addMoreBtn.remove();
         } else {
             showFileInfo(Array.from(pdfFiles.files));
         }
@@ -223,6 +248,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Remove existing button
         const existing = document.getElementById('convertPdfBtn');
         if (existing) existing.remove();
+        
+        // Remove existing add more button
+        const existingAddMore = document.getElementById('addMoreFilesBtn');
+        if (existingAddMore) existingAddMore.remove();
 
         const operation = document.querySelector('input[name="operation"]:checked').value;
         const btn = document.createElement('button');
@@ -444,6 +473,11 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('Maximum 25 PDF files allowed for merging');
             pdfFiles.value = '';
             return;
+        }
+
+        // Show warning if less than 2 files, but don't clear selection
+        if (this.files.length < 2) {
+            showError('Please select at least 2 PDF files to merge. Use "Add More Files" button to add additional files.');
         }
 
         // Validate file sizes (max 100MB each)
