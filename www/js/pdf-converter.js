@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', function() {
         fileInput.required = true;
         otherInput.required = false;
         
+        // Update label 'for' attribute to point to correct input
+        label.setAttribute('for', fileInput.id);
+        
         // Update label and accept attribute
         if (operation === 'convert') {
             label.innerHTML = `
