@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const pagesInput = document.getElementById('pages');
 
     /**
+     * Format file size for display (same implementation as XLSX converter)
+     */
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
      * Update UI based on selected operation
      */
     function updateOperationUI() {
@@ -203,12 +214,31 @@ document.addEventListener('DOMContentLoaded', function() {
             info.appendChild(fileList);
         } else {
             const file = files[0];
+
+            // Use the same visual style as XLSX converter: a rounded pill with file name and size
+            info.style.display = 'inline-flex';
+            info.style.alignItems = 'center';
+            info.style.justifyContent = 'space-between';
+            info.style.maxWidth = '100%';
+            info.style.gap = '10px';
+            info.style.marginTop = '1rem';
+            info.style.padding = '0.5rem 1rem';
+            info.style.backgroundColor = '#c9c9c9';
+            info.style.borderRadius = '999px';
+            info.style.fontSize = '0.9rem';
+
             info.innerHTML = `
-                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <strong>📄 ${file.name}</strong>
-                    <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
+                <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0;">
+                        <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <strong>📄 ${file.name}</strong>
+                        <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
+                    </div>
                 </div>
-                <button class="remove-file-btn" type="button" title="Remove file" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
+                <button class="remove-file-btn" type="button" title="Remove file">
                     ✕
                 </button>
             `;
@@ -273,6 +303,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing content
         resultSection.innerHTML = `
             <h2>Split Result</h2>
+            <div id="pdfViewerContainer" style="display:none; margin-top: 1rem;">
+                <h3>PDF Preview</h3>
+                <iframe id="pdfViewer" width="100%" height="600px" style="border: 1px solid #ccc;"></iframe>
+            </div>
             <p>${result.message}</p>
             <div style="margin-bottom: 1rem;">
                 <a href="/download-zip/${result.session_id}" class="download-link" style="background: #28a745; margin-right: 1rem;">
@@ -282,9 +316,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="file-list">
                 ${result.files.map(file => `
                     <div class="file-item">
-                        <a href="${file.url}" download="${file.filename}" class="download-link">
+                        <a href="${file.url}" download="${file.filename}" class="download-link" target="_blank">
                             📄 ${file.filename} (${formatFileSize(file.size)})
                         </a>
+                        <button class="preview-btn" onclick="loadPdfPreview('${file.url}')" style="margin-left: 10px; background: #007acc; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Preview</button>
                     </div>
                 `).join('')}
             </div>
@@ -386,6 +421,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     downloadLink.download = 'split_result.pdf';
                     downloadLink.textContent = 'Download Split PDF';
                     downloadLink.style.display = 'inline-block';
+
+                    // Display PDF preview for single split result
+                    const pdfViewer = document.getElementById('pdfViewer');
+                    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+                    pdfViewer.src = url;
+                    pdfViewerContainer.style.display = 'block';
+
                     resultSection.style.display = 'block';
                 }
             } else {
@@ -393,15 +435,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 downloadLink.href = url;
-                
+
                 // Set appropriate filename
                 if (operation === 'convert') {
                     const file = fileInput.files[0];
                     downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
+
+                    // Display PDF preview
+                    const pdfViewer = document.getElementById('pdfViewer');
+                    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+                    pdfViewer.src = url;
+                    pdfViewerContainer.style.display = 'block';
                 } else if (operation === 'merge') {
                     downloadLink.download = 'merged.pdf';
+                    // Hide PDF preview for merged files since it might be large
+                    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+                    pdfViewerContainer.style.display = 'none';
                 }
-                
+
                 resultSection.style.display = 'block';
             }
 
@@ -418,6 +469,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                        operation === 'split' ? 'Split PDF' : 'Merge PDFs';
             }
         }
+    }
+
+    /**
+     * Load PDF preview when clicking on preview button
+     */
+    function loadPdfPreview(url) {
+        const pdfViewer = document.getElementById('pdfViewer');
+        const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+        pdfViewer.src = url;
+        pdfViewerContainer.style.display = 'block';
     }
 
     /**

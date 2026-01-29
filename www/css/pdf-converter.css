@@ -65,6 +65,12 @@
     margin-top: 1rem;
 }
 
+/* Ensure selected file info is visible above the file input overlay */
+.file-selected {
+    position: relative;
+    z-index: 50;
+}
+
 .file-item {
     margin-bottom: 0.5rem;
 }
@@ -81,4 +87,12 @@
 
 .download-link:hover {
     background: #0056b3;
+}
+
+.preview-btn {
+    background: #28a745 !important;
+}
+
+.preview-btn:hover {
+    background: #218838 !important;
 }
