@@ -39,7 +39,6 @@ class ConversionProgress:
 
 
 # Global thread pool for CPU-bound operations - dynamically sized
-import os
 _cpu_executor = None
 
 def get_cpu_executor():
