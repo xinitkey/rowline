@@ -98,3 +98,35 @@ footer a:hover{text-decoration:underline}
 .feature-header{align-items:center;display:inline-flex;gap:8px}
 .feature-icon{display:block;flex-shrink:0;height:24px;width:24px}
 h3{margin:0}
+
+/* PDF Converter styles */
+.operation-selector{display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:2rem;justify-content:center}
+.operation-option{align-items:center;border:2px solid #9ca3cd;border-radius:8px;cursor:pointer;display:flex;gap:.5rem;padding:.5rem 1rem;transition:all .2s;background-color:#E3E2E2}
+.operation-option:hover{border-color:#57d0d6;background-color:#e0e4ff}
+.operation-option input[type="radio"]{margin:0;accent-color:#57d0d6;outline:none;box-shadow:none}
+.operation-option input[type="radio"]:focus,.operation-option input[type="radio"]:focus-visible{outline:none;box-shadow:none}
+.operation-option input[type="radio"]:checked+span{font-weight:bold;color:#0d7377}
+.operation-options{background:#E3E2E2;border:2px solid #9ca3cd;border-radius:8px;margin-top:1rem;padding:1rem}
+.operation-options label{display:block;font-weight:500;margin-bottom:.5rem;color:#2c2e3b}
+.operation-options input[type="text"]{border:2px solid #9ca3cd;border-radius:4px;font-size:1rem;padding:.5rem;width:100%;background-color:#fff}
+.help-text{color:#555;display:block;font-size:.85rem;line-height:1.4;margin-top:.5rem}
+.file-list{margin-top:1rem}
+.file-selected{position:relative;z-index:50}
+.file-item{margin-bottom:.5rem}
+.download-link{background:#43DDCB;border-radius:50px;color:#000;display:inline-block;padding:12px 24px;text-decoration:none;transition:background .2s;font-weight:600}
+.download-link:hover{background:#57d0d6}
+.preview-btn{background:#43DDCB!important;color:#000!important;border-radius:50px!important;font-weight:600!important}
+.preview-btn:hover{background:#57d0d6!important}
+
+[data-theme="dark"] .operation-option{background-color:#24283b;border-color:#565f89;color:#c0caf5}
+[data-theme="dark"] .operation-option:hover{border-color:#57d0d6;background-color:#2a2e4a}
+[data-theme="dark"] .operation-option input[type="radio"]{accent-color:#ff0000}
+[data-theme="dark"] .operation-option input[type="radio"]:checked+span{color:#57d0d6}
+[data-theme="dark"] .operation-options{background-color:#24283b;border-color:#565f89}
+[data-theme="dark"] .operation-options label{color:#c0caf5}
+[data-theme="dark"] .operation-options input[type="text"]{background-color:#16161e;border-color:#565f89;color:#c0caf5}
+[data-theme="dark"] .help-text{color:#a9b1d6}
+[data-theme="dark"] .download-link{background-color:#1abc9c;color:#1a1b26}
+[data-theme="dark"] .download-link:hover{background-color:#16a085}
+[data-theme="dark"] .preview-btn{background-color:#1abc9c!important;color:#1a1b26!important}
+[data-theme="dark"] .preview-btn:hover{background-color:#16a085!important}
