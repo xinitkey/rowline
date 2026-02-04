@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-XLSX to XML Converter / Filler - Главный файл запуска.
+Rowline Converter / Filler - Main start file.
 
-Запуск веб-сервера:
-    python main.py                  # Запустить FastAPI сервер
-    python main.py --host 0.0.0.0   # Доступ из сети
-    python main.py --port 8080      # Другой порт
+Starting the web server:
+    python main.py                  # Start FastAPI server
+    python main.py --host 0.0.0.0   # Network access
+    python main.py --port 8080      # Different port
 
-Запуск CLI:
+Starting CLI:
     python main.py cli data.xlsx -t template.xml -o output/
     python main.py cli data.xlsx --convert -o output/
 """
@@ -17,98 +17,97 @@ import argparse
 
 
 def main():
-    """Главная функция - роутер между веб-сервером и CLI."""
+    """Main function - router between web server and CLI."""
     
-    # Если первый аргумент 'cli' - запускаем CLI режим
+    # If the first argument is 'cli' - start CLI mode
     if len(sys.argv) > 1 and sys.argv[0] != 'cli' and sys.argv[1] == 'cli':
-        # Убираем 'cli' из аргументов и запускаем CLI
+        # Remove 'cli' from arguments and start CLI
         sys.argv = [sys.argv[0]] + sys.argv[2:]
         from src.cli import cli_main
         return cli_main()
     
-    # Проверяем, есть ли аргументы похожие на CLI
+    # Check if there are arguments resembling CLI
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        # Если это файл .xlsx - запускаем CLI
+        # If it's a .xlsx file - start CLI
         if first_arg.endswith('.xlsx'):
             from src.cli import cli_main
             return cli_main()
-        # Если это не флаг сервера - показываем help
+        # If it's not a server flag - show help
         if first_arg not in ['--host', '--port', '-h', '--help', '--reload']:
             if not first_arg.startswith('-'):
-                print(f"Неизвестная команда: {first_arg}")
-                print("Используйте 'python main.py cli' для командной строки")
-                print("Или 'python main.py' для запуска веб-сервера")
+                print(f"Unknown command: {first_arg}")
+                print("Use 'python main.py cli' for command line interface")
+                print("Or 'python main.py' to start the web server")
                 return 1
     
-    # Парсим аргументы для веб-сервера
+    # Parse arguments for web server    
     parser = argparse.ArgumentParser(
-        description="XLSX to XML Converter - Web Server",
+        description="Rowline Converter / Filler - Web Server",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Примеры запуска:
-  python main.py                  # Запуск на http://127.0.0.1:8000
-  python main.py --host 0.0.0.0   # Доступ из сети
-  python main.py --port 8080      # Другой порт
-  python main.py --reload         # Авто-перезагрузка при изменениях
-
-CLI режим:
+Examples of starting the web server:
+  python main.py                  # Start at http://127.0.0.1:8000
+  python main.py --host 0.0.0.0   # Network access
+  python main.py --port 8080      # Different port
+  python main.py --reload         # Auto-reload on code changes
+CLI mode examples:
   python main.py cli data.xlsx -t template.xml -o output/
   python main.py cli data.xlsx --convert -o output/
         """
     )
     parser.add_argument('--host', type=str, default='127.0.0.1',
-                        help='Хост для сервера (по умолчанию: 127.0.0.1)')
+                        help='Host for the server (default: 127.0.0.1)')
     parser.add_argument('--port', type=int, default=8000,
-                        help='Порт для сервера (по умолчанию: 8000)')
+                        help='Port for the server (default: 8000)')
     parser.add_argument('--workers', type=int, default=4,
-                        help='Количество воркеров (по умолчанию: 4)')
+                        help='Number of workers (default: 4)')
     parser.add_argument('--reload', action='store_true',
-                        help='Авто-перезагрузка при изменениях кода')
+                        help='Auto-reload on code changes')
     
     args = parser.parse_args()
     
-    # Запускаем FastAPI сервер
+    # Start the web server
     try:
         import uvicorn
     except ImportError:
-        print("Для запуска веб-сервера установите uvicorn:")
+        print("To run the web server, install uvicorn:")
         print("  pip install uvicorn")
-        print("\nИли используйте CLI режим:")
+        print("\nOr use CLI mode:")
         print("  python main.py cli data.xlsx -t template.xml -o output/")
         return 1
     
-    # Определяем количество воркеров
+    # Determine number of workers
     import os
     import platform
     from src.api import MAX_WORKERS, MAX_CONCURRENT_OPERATIONS, USE_MULTIPROCESSING, PROCESS_POOL_SIZE
     
-    # На Windows многопроцессный режим uvicorn работает нестабильно
-    # Используем 1 воркер, но с большим пулом потоков в api.py
+    # On Windows, uvicorn's multiprocessing mode is unstable
+    # Use 1 worker, but with a large thread pool in api.py
     if platform.system() == 'Windows':
         workers = 1
         if args.workers > 1:
             print("  [WARNING] On Windows using 1 worker (uvicorn limitation)")
-            print("      Параллельность обеспечивается пулом потоков")
+            print("      Parallelism is provided by the thread pool")
     else:
-        # На Linux/Unix системах используем полную мощность
+        # On Linux/Unix systems use full power
         cpu_count = os.cpu_count()
         default_workers = int(os.getenv('UVICORN_WORKERS', min(cpu_count, 8)))  # Allow env override
         
         if args.workers == 4:  # default
-            # Автоматически рассчитываем оптимальное количество воркеров
+            # Automatically calculate the optimal number of workers
             workers = default_workers
         else:
             workers = args.workers
         
         if not args.reload and workers > 1:
             print(f"  [INFO] On {platform.system()} using {workers} uvicorn workers")
-            print("      Полная многопроцессная архитектура")
+            print("      Full multiprocess architecture")
     
     workers = workers if not args.reload else 1
     
     print("=" * 50)
-    print("  XLSX to XML Converter - Web Server")
+    print("  Rowline Converter / Filler - Web Server")
     print("=" * 50)
     print(f"  URL: http://{args.host}:{args.port}")
     print(f"  API: http://{args.host}:{args.port}/api/health")

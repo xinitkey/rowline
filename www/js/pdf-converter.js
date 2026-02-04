@@ -123,6 +123,46 @@ document.addEventListener('DOMContentLoaded', function() {
         showConvertButton();
     }
     /**
+     * Move file up in merge list
+     */
+    function moveFileUp(index) {
+        if (index <= 0) return;
+        
+        const dt = new DataTransfer();
+        const currentFiles = Array.from(pdfFiles.files);
+        
+        // Swap files
+        [currentFiles[index - 1], currentFiles[index]] = [currentFiles[index], currentFiles[index - 1]];
+        
+        currentFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        
+        pdfFiles.files = dt.files;
+        showFileInfo(currentFiles);
+    }
+
+    /**
+     * Move file down in merge list
+     */
+    function moveFileDown(index) {
+        const currentFiles = Array.from(pdfFiles.files);
+        if (index >= currentFiles.length - 1) return;
+        
+        const dt = new DataTransfer();
+        
+        // Swap files
+        [currentFiles[index], currentFiles[index + 1]] = [currentFiles[index + 1], currentFiles[index]];
+        
+        currentFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        
+        pdfFiles.files = dt.files;
+        showFileInfo(currentFiles);
+    }
+
+    /**
      * Remove specific file from merge list
      */
     function removeFileFromMerge(index) {
@@ -181,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (isMultiple) {
             // Create a list of files for merge operation
-            info.innerHTML = '<div style="font-weight: bold; margin-bottom: 0.5rem;">📄 Selected files for merge:</div>';
+            info.innerHTML = '<div style="font-weight: bold; margin-bottom: 0.5rem;">📄 Selected files for merge (drag to reorder or use buttons):</div>';
             
             const fileList = document.createElement('div');
             fileList.style.display = 'flex';
@@ -193,20 +233,126 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileItem.style.display = 'flex';
                 fileItem.style.alignItems = 'center';
                 fileItem.style.justifyContent = 'space-between';
-                fileItem.style.padding = '0.5rem 1rem';
+                fileItem.style.padding = '0.75rem 1rem';
                 fileItem.style.backgroundColor = '#e3f2fd';
                 fileItem.style.borderRadius = '8px';
                 fileItem.style.fontSize = '0.9rem';
+                fileItem.draggable = true;
+                fileItem.className = 'merge-file-item';
+                fileItem.setAttribute('data-index', index);
                 
-                fileItem.innerHTML = `
-                    <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <strong>${file.name}</strong>
-                        <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
-                    </div>
-                    <button class="remove-file-btn" type="button" data-index="${index}" title="Remove this file" style="background: none; border: none; color: #999; cursor: pointer; font-size: 1.2rem;">
-                        ✕
-                    </button>
+                const fileNameDiv = document.createElement('div');
+                fileNameDiv.style.overflow = 'hidden';
+                fileNameDiv.style.textOverflow = 'ellipsis';
+                fileNameDiv.style.whiteSpace = 'nowrap';
+                fileNameDiv.style.flex = '1';
+                fileNameDiv.innerHTML = `
+                    <strong>${index + 1}. ${file.name}</strong>
+                    <span style="color: #666; margin-left: 0.5rem;">(${formatFileSize(file.size)})</span>
                 `;
+                
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.style.display = 'flex';
+                buttonsDiv.style.gap = '0.5rem';
+                buttonsDiv.style.marginLeft = '1rem';
+                buttonsDiv.style.flexShrink = '0';
+                
+                // Move up button
+                const upBtn = document.createElement('button');
+                upBtn.type = 'button';
+                upBtn.title = 'Move up';
+                upBtn.className = 'move-up-btn';
+                upBtn.innerHTML = '⬆️';
+                upBtn.style.background = 'none';
+                upBtn.style.border = 'none';
+                upBtn.style.cursor = index === 0 ? 'not-allowed' : 'pointer';
+                upBtn.style.fontSize = '1.1rem';
+                upBtn.style.opacity = index === 0 ? '0.4' : '1';
+                upBtn.disabled = index === 0;
+                upBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    moveFileUp(index);
+                });
+                
+                // Move down button
+                const downBtn = document.createElement('button');
+                downBtn.type = 'button';
+                downBtn.title = 'Move down';
+                downBtn.className = 'move-down-btn';
+                downBtn.innerHTML = '⬇️';
+                downBtn.style.background = 'none';
+                downBtn.style.border = 'none';
+                downBtn.style.cursor = index === files.length - 1 ? 'not-allowed' : 'pointer';
+                downBtn.style.fontSize = '1.1rem';
+                downBtn.style.opacity = index === files.length - 1 ? '0.4' : '1';
+                downBtn.disabled = index === files.length - 1;
+                downBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    moveFileDown(index);
+                });
+                
+                // Remove button
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'remove-file-btn';
+                removeBtn.setAttribute('data-index', index);
+                removeBtn.title = 'Remove this file';
+                removeBtn.innerHTML = '✕';
+                removeBtn.style.background = 'none';
+                removeBtn.style.border = 'none';
+                removeBtn.style.color = '#999';
+                removeBtn.style.cursor = 'pointer';
+                removeBtn.style.fontSize = '1.2rem';
+                
+                buttonsDiv.appendChild(upBtn);
+                buttonsDiv.appendChild(downBtn);
+                buttonsDiv.appendChild(removeBtn);
+                
+                fileItem.appendChild(fileNameDiv);
+                fileItem.appendChild(buttonsDiv);
+                
+                // Drag and drop within merge list
+                fileItem.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', index);
+                    fileItem.style.opacity = '0.5';
+                });
+                
+                fileItem.addEventListener('dragend', (e) => {
+                    fileItem.style.opacity = '1';
+                });
+                
+                fileItem.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    fileItem.style.borderTop = '2px solid #007acc';
+                });
+                
+                fileItem.addEventListener('dragleave', (e) => {
+                    fileItem.style.borderTop = 'none';
+                });
+                
+                fileItem.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    fileItem.style.borderTop = 'none';
+                    
+                    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    if (sourceIndex === index) return;
+                    
+                    const dt = new DataTransfer();
+                    const currentFiles = Array.from(pdfFiles.files);
+                    
+                    // Remove from source and insert at target
+                    const [movedFile] = currentFiles.splice(sourceIndex, 1);
+                    currentFiles.splice(index, 0, movedFile);
+                    
+                    currentFiles.forEach(file => {
+                        dt.items.add(file);
+                    });
+                    
+                    pdfFiles.files = dt.files;
+                    showFileInfo(currentFiles);
+                });
                 
                 fileList.appendChild(fileItem);
             });
