@@ -95,6 +95,12 @@ document.addEventListener('DOMContentLoaded', function() {
         resultSection.style.display = 'none';
         hideError();
         
+        // Reset merge files when changing operation
+        if (operation !== 'merge') {
+            currentMergeFiles = [];
+            pdfFiles.value = '';
+        }
+        
         // Show appropriate button for current operation
         showConvertButton();
     }
@@ -115,6 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         pdfFiles.files = dt.files;
+        currentMergeFiles = Array.from(dt.items);
         showFileInfo(currentFiles);
     }
 
@@ -135,6 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         pdfFiles.files = dt.files;
+        currentMergeFiles = Array.from(dt.items);
         showFileInfo(currentFiles);
     }
 
@@ -153,6 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         pdfFiles.files = dt.files;
+        currentMergeFiles = Array.from(dt.items);
         
         // Update UI
         if (pdfFiles.files.length === 0) {
@@ -165,12 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
         } else if (pdfFiles.files.length === 1) {
             showError('Please select at least 2 PDF files to merge');
             pdfFiles.value = '';
+            currentMergeFiles = [];
             const existing = document.getElementById('fileInfo');
             if (existing) existing.remove();
             const convertBtn = document.getElementById('convertPdfBtn');
             if (convertBtn) convertBtn.remove();
-            const addMoreBtn = document.getElementById('addMoreFilesBtn');
-            if (addMoreBtn) addMoreBtn.remove();
         } else {
             showFileInfo(Array.from(pdfFiles.files));
         }
@@ -186,6 +194,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const operation = document.querySelector('input[name="operation"]:checked').value;
         const isMultiple = operation === 'merge';
+        
+        // Update tracked files for merge mode
+        if (isMultiple) {
+            currentMergeFiles = files;
+        }
         
         const info = document.createElement('div');
         info.id = 'fileInfo';
@@ -327,6 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     pdfFiles.files = dt.files;
+                    currentMergeFiles = Array.from(dt.items);
                     showFileInfo(currentFiles);
                 });
                 
@@ -615,6 +629,9 @@ document.addEventListener('DOMContentLoaded', function() {
         errorSection.style.display = 'none';
     }
 
+    // Track current files for merge mode
+    let currentMergeFiles = [];
+
     // Handle file selection
     pdfFile.addEventListener('change', function() {
         if (!this.files || this.files.length === 0) {
@@ -647,35 +664,30 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Combine newly selected files with existing files
-        const dt = new DataTransfer();
         const newFiles = Array.from(this.files);
         
-        // Get existing files from the currently displayed list
-        const fileInfo = document.getElementById('fileInfo');
-        if (fileInfo && fileInfo.querySelector('.merge-file-item')) {
-            const currentFiles = Array.from(pdfFiles.files);
-            // Filter out the new files to keep only truly existing ones
-            const existingCount = currentFiles.length - newFiles.length;
-            if (existingCount > 0) {
-                currentFiles.slice(0, existingCount).forEach(file => {
-                    dt.items.add(file);
-                });
-            }
-        }
+        // Combine existing files with newly selected files
+        const dt = new DataTransfer();
+        
+        // Add existing files
+        currentMergeFiles.forEach(file => {
+            dt.items.add(file);
+        });
         
         // Add newly selected files
         newFiles.forEach(file => {
             dt.items.add(file);
         });
         
-        // Update files
-        this.files = dt.files;
-        const allFiles = Array.from(this.files);
+        // Update the tracked list and input
+        currentMergeFiles = Array.from(dt.items);
+        pdfFiles.files = dt.files;
+        const allFiles = Array.from(pdfFiles.files);
 
         // Validate file count
         if (allFiles.length > 25) {
             showError('Maximum 25 PDF files allowed for merging');
+            currentMergeFiles = [];
             pdfFiles.value = '';
             return;
         }
