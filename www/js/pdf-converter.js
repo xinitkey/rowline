@@ -85,30 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             fileInput.accept = ".pdf";
             splitOptions.style.display = 'none';
-            
-            // For merge mode, add an additional "Add more files" button
-            setTimeout(() => {
-                const addMoreBtn = document.createElement('button');
-                addMoreBtn.id = 'addMoreFilesBtn';
-                addMoreBtn.type = 'button';
-                addMoreBtn.className = 'btn-secondary';
-                addMoreBtn.textContent = 'Add More Files';
-                addMoreBtn.style.marginTop = '0.5rem';
-                addMoreBtn.style.padding = '0.5rem 1rem';
-                addMoreBtn.style.backgroundColor = '#6c757d';
-                addMoreBtn.style.color = 'white';
-                addMoreBtn.style.border = 'none';
-                addMoreBtn.style.borderRadius = '4px';
-                addMoreBtn.style.cursor = 'pointer';
-                addMoreBtn.addEventListener('click', () => {
-                    fileInput.click();
-                });
-                
-                const existingAddMore = document.getElementById('addMoreFilesBtn');
-                if (existingAddMore) existingAddMore.remove();
-                
-                uploadContainer.appendChild(addMoreBtn);
-            }, 100);
         }
         
         // Clear current file selection
@@ -424,10 +400,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Remove existing button
         const existing = document.getElementById('convertPdfBtn');
         if (existing) existing.remove();
-        
-        // Remove existing add more button
-        const existingAddMore = document.getElementById('addMoreFilesBtn');
-        if (existingAddMore) existingAddMore.remove();
 
         const operation = document.querySelector('input[name="operation"]:checked').value;
         const btn = document.createElement('button');
@@ -675,21 +647,47 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Combine newly selected files with existing files
+        const dt = new DataTransfer();
+        const newFiles = Array.from(this.files);
+        
+        // Get existing files from the currently displayed list
+        const fileInfo = document.getElementById('fileInfo');
+        if (fileInfo && fileInfo.querySelector('.merge-file-item')) {
+            const currentFiles = Array.from(pdfFiles.files);
+            // Filter out the new files to keep only truly existing ones
+            const existingCount = currentFiles.length - newFiles.length;
+            if (existingCount > 0) {
+                currentFiles.slice(0, existingCount).forEach(file => {
+                    dt.items.add(file);
+                });
+            }
+        }
+        
+        // Add newly selected files
+        newFiles.forEach(file => {
+            dt.items.add(file);
+        });
+        
+        // Update files
+        this.files = dt.files;
+        const allFiles = Array.from(this.files);
+
         // Validate file count
-        if (this.files.length > 25) {
+        if (allFiles.length > 25) {
             showError('Maximum 25 PDF files allowed for merging');
             pdfFiles.value = '';
             return;
         }
 
         // Show warning if less than 2 files, but don't clear selection
-        if (this.files.length < 2) {
-            showError('Please select at least 2 PDF files to merge. Use "Add More Files" button to add additional files.');
+        if (allFiles.length < 2) {
+            showError('Please select at least 2 PDF files to merge.');
         }
 
         // Validate file sizes (max 100MB each)
         const maxSize = 100 * 1024 * 1024;
-        for (let file of this.files) {
+        for (let file of allFiles) {
             if (file.size > maxSize) {
                 showError('One or more files are too large. Maximum size: 100MB per file');
                 pdfFiles.value = '';
@@ -702,7 +700,7 @@ document.addEventListener('DOMContentLoaded', function() {
         hideError();
 
         // Show file info
-        showFileInfo(Array.from(this.files));
+        showFileInfo(allFiles);
 
         console.log(`✓ ${this.files.length} files selected for merge`);
     });
