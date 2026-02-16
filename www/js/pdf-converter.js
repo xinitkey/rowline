@@ -580,9 +580,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     pdfViewerContainer.style.display = 'block';
                 } else if (operation === 'merge') {
                     downloadLink.download = 'merged.pdf';
-                    // Hide PDF preview for merged files since it might be large
+                    
+                    // Display PDF preview for merged files (same as convert)
+                    const pdfViewer = document.getElementById('pdfViewer');
                     const pdfViewerContainer = document.getElementById('pdfViewerContainer');
-                    pdfViewerContainer.style.display = 'none';
+                    pdfViewer.src = url;
+                    pdfViewerContainer.style.display = 'block';
                 }
 
                 resultSection.style.display = 'block';
