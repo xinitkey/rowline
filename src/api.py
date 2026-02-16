@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, any_to_pdf_async, ConversionProgress, UnsupportedFormat, split_pdf, merge_pdf
+from src.gif.video_to_gif import video_to_gif
 
 # Path to static files (frontend)
 STATIC_DIR = Path(__file__).parent.parent / "www"
@@ -1068,6 +1069,87 @@ async def get_conversion_progress(request_id: str):
         "status": status,
         "completed": step >= 1
     }
+
+
+@app.post("/api/video-to-gif")
+async def convert_video_to_gif(
+    file: UploadFile = File(..., description="Video file to convert to GIF"),
+    start: Optional[float] = Form(default=None, description="Start time in seconds"),
+    end: Optional[float] = Form(default=None, description="End time in seconds"),
+    fps: Optional[int] = Form(default=None, description="Frames per second (15-30 recommended)"),
+    width: Optional[int] = Form(default=None, description="Output width in pixels")
+):
+    """
+    Convert video file to animated GIF.
+
+    - **file**: Video file (MP4, WebM, AVI, etc.)
+    - **start**: Start time in seconds (optional)
+    - **end**: End time in seconds (optional)
+    - **fps**: Frames per second (optional, recommended 15-30)
+    - **width**: Output width in pixels (optional)
+    """
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Save uploaded file asynchronously
+            input_path = work_dir / file.filename
+            content = await file.read()
+            
+            # Check file size (limit to 500MB)
+            file_size = len(content)
+            if file_size > 500 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum size is 500MB."
+                )
+            
+            await save_file_content_async(content, input_path)
+            
+            # Define output path
+            output_path = work_dir / f"{input_path.stem}.gif"
+            
+            # Convert video to GIF asynchronously (CPU-bound operation)
+            try:
+                await run_cpu_bound_task(
+                    video_to_gif,
+                    str(input_path),
+                    str(output_path),
+                    start,
+                    end,
+                    fps,
+                    width
+                )
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
+
+            if not output_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create GIF file")
+
+            # Sanitize filename for HTTP headers
+            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "converted.gif"
+
+            return FileResponse(
+                path=output_path,
+                filename=safe_filename,
+                media_type="image/gif",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                }
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 # Mount static files (frontend)

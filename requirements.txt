@@ -10,6 +10,7 @@ docx2pdf>=0.1.8
 img2pdf>=0.6.0
 pillow>=10.0.0
 pypdf>=4.0.0
+moviepy>=2.2.1
 
 # System dependencies for Linux/macOS:
 # sudo apt install wkhtmltopdf libmagic1  (for Ubuntu/Debian)
