@@ -2,3 +2,4 @@ pycache/
 *.pyc
 temp/__pycache__/
 *.pyc
+temp/

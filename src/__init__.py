@@ -24,6 +24,10 @@ from .pdf import (
     merge_pdf,
     merge_pdf_sequential,
     merge_pdf_parallel,
+    # PDF to Excel
+    convert_pdf_to_excel,
+    detect_table_flavor,
+    get_pdf_table_info,
 )
 
 __version__ = "1.0.0"
@@ -46,4 +50,8 @@ __all__ = [
     "merge_pdf",
     "merge_pdf_sequential",
     "merge_pdf_parallel",
+    # PDF to Excel
+    "convert_pdf_to_excel",
+    "detect_table_flavor",
+    "get_pdf_table_info",
 ]

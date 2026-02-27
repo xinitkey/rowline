@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
-from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, any_to_pdf_async, ConversionProgress, UnsupportedFormat, split_pdf, merge_pdf
+from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, any_to_pdf_async, ConversionProgress, UnsupportedFormat, split_pdf, merge_pdf, convert_pdf_to_excel, get_pdf_table_info
 from src.gif.video_to_gif import video_to_gif
 
 # Path to static files (frontend)
@@ -1069,6 +1069,138 @@ async def get_conversion_progress(request_id: str):
         "status": status,
         "completed": step >= 1
     }
+
+@app.post("/api/pdf-to-excel")
+async def convert_pdf_to_excel_endpoint(
+    file: UploadFile = File(..., description="PDF file to convert"),
+    pages: str = Form(default="all", description="Pages to process (e.g., '1', '1-3', '1,3,5', 'all')"),
+    flavor: str = Form(default="auto", description="Table extraction mode: 'lattice', 'stream', or 'auto' for auto-detect")
+):
+    """
+    Convert PDF tables to Excel format.
+    
+    - **file**: PDF file to convert
+    - **pages**: Pages to process (default: "all")
+    - **flavor**: Extraction mode - "lattice" for tables with lines, "stream" for tables without lines, "auto" for auto-detect
+    """
+    # Limit concurrent operations
+    async with operation_semaphore:
+        # Create unique temp folder for this request
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
+            
+            # Check file size (limit to 100MB)
+            file_size = len(content)
+            if file_size > 100 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum size is 100MB."
+                )
+            
+            await save_file_content_async(content, input_path)
+            
+            # Define output path
+            output_path = work_dir / f"{input_path.stem}.xlsx"
+            
+            # Auto-detect flavor if requested
+            actual_flavor = flavor
+            if flavor.lower() == "auto":
+                try:
+                    actual_flavor = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda: detect_table_flavor(str(input_path), "1")
+                    )
+                except Exception:
+                    actual_flavor = "lattice"  # Default fallback
+            
+            # Convert PDF to Excel (CPU-bound operation)
+            try:
+                sheet_names, table_count = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: convert_pdf_to_excel(
+                        str(input_path),
+                        pages=pages,
+                        flavor=actual_flavor,
+                        output_path=str(output_path)
+                    )
+                )
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
+
+            if not output_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create Excel file")
+
+            # Sanitize filename for HTTP headers
+            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "converted.xlsx"
+
+            return FileResponse(
+                path=output_path,
+                filename=safe_filename,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                }
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/analyze-pdf")
+async def analyze_pdf_endpoint(
+    file: UploadFile = File(..., description="PDF file to analyze"),
+    pages: str = Form(default="1", description="Sample pages to analyze")
+):
+    """
+    Analyze PDF to detect tables and suggest extraction settings.
+    
+    - **file**: PDF file to analyze
+    - **pages**: Sample pages to analyze (default: "1")
+    """
+    # Limit concurrent operations
+    async with operation_semaphore:
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            # Save uploaded file
+            input_path = work_dir / file.filename
+            content = await file.read()
+            await save_file_content_async(content, input_path)
+            
+            # Analyze PDF (CPU-bound operation)
+            try:
+                table_info = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: get_pdf_table_info(str(input_path), pages=pages)
+                )
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Analysis failed: {safe_detail}")
+            
+            return table_info
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.post("/api/video-to-gif")
