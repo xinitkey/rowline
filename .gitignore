@@ -1,5 +1,14 @@
-pycache/
-*.pyc
-temp/__pycache__/
 *.pyc
 temp/
+__pycache__/
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+.idea/
+.vscode/
+.venv/
+venv/
+env/
+*.log
