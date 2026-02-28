@@ -192,3 +192,85 @@ async function showFileInfo(file) {
 
     container.appendChild(info);
 }
+
+/**
+ * Dropdown Menu Navigation
+ */
+class DropdownMenu {
+    constructor() {
+        this.dropdownBtn = null;
+        this.dropdownContent = null;
+        this.isOpen = false;
+
+        // Use MutationObserver to detect when the header is injected
+        this.observer = new MutationObserver(() => this.tryInit());
+        this.observer.observe(document.body, { childList: true, subtree: true });
+
+        // Try to init immediately
+        this.tryInit();
+    }
+
+    tryInit() {
+        if (this.dropdownBtn) return; // Already initialized
+
+        this.dropdownBtn = document.querySelector('.dropdown-btn');
+        this.dropdownContent = document.querySelector('.dropdown-content');
+
+        if (this.dropdownBtn && this.dropdownContent) {
+            this.init();
+            this.observer.disconnect(); // Stop observing
+        }
+    }
+
+    init() {
+        // Toggle dropdown on button click
+        this.dropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggle();
+        });
+
+        // Close dropdown when clicking on a link
+        this.dropdownContent.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => this.close());
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown-nav')) {
+                this.close();
+            }
+        });
+
+        // Close dropdown when pressing Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+    }
+
+    toggle() {
+        this.isOpen ? this.close() : this.open();
+    }
+
+    open() {
+        this.isOpen = true;
+        this.dropdownContent.classList.add('show');
+        this.dropdownBtn.classList.add('active');
+        this.dropdownBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    close() {
+        this.isOpen = false;
+        this.dropdownContent.classList.remove('show');
+        this.dropdownBtn.classList.remove('active');
+        this.dropdownBtn.setAttribute('aria-expanded', 'false');
+    }
+}
+
+// Initialize dropdown menu when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => new DropdownMenu());
+} else {
+    new DropdownMenu();
+}
