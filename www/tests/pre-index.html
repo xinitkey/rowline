@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Header с mega menu (click)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+    }
+
+    /* Хедер */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 40px;
+      background: #ffffff;
+      border-bottom: 1px solid #e5e7eb;
+      position: relative;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      font-size: 20px;
+      color: #111827;
+    }
+
+    .logo-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: #6366f1;
+    }
+
+    /* Навигация */
+    .nav-list {
+      list-style: none;
+      display: flex;
+      gap: 24px;
+    }
+
+    .nav-item {
+      position: relative;
+    }
+
+    .nav-link {
+      background: none;
+      border: none;
+      padding: 8px 0;
+      font: inherit;
+      cursor: pointer;
+      color: #111827;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-link::after {
+      content: "▾";
+      font-size: 11px;
+      transform: translateY(1px);
+    }
+
+    .nav-item:not(.dropdown) .nav-link::after {
+      content: "";
+    }
+
+    .nav-link:hover {
+      color: #4f46e5;
+    }
+
+    /* Выпадающее mega‑меню */
+    .dropdown-menu {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      margin-top: 16px;
+      padding: 24px 32px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+      min-width: 760px;
+      gap: 32px;
+      display: none;          /* по умолчанию скрыто */
+    }
+
+    /* когда у dropdown есть класс .open — показываем */
+    .dropdown.open .dropdown-menu {
+      display: flex;
+    }
+
+    /* Колонки */
+    .dropdown-column {
+      min-width: 170px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .dropdown-column h4 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .dropdown-column a {
+      font-size: 14px;
+      color: #111827;
+      text-decoration: none;
+      padding: 3px 0;
+      white-space: nowrap;
+    }
+
+    .dropdown-column a:hover {
+      color: #4f46e5;
+    }
+
+    /* Обычные пункты */
+    .nav-item a.simple-link {
+      text-decoration: none;
+      color: #111827;
+      padding: 8px 0;
+      display: inline-block;
+    }
+
+    .nav-item a.simple-link:hover {
+      color: #4f46e5;
+    }
+
+    /* Кнопки справа */
+    .right-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn-outline {
+      border: 1px solid #d1d5db;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 14px;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      border-radius: 999px;
+      padding: 7px 16px;
+      font-size: 14px;
+      border: none;
+      background: #4f46e5;
+      color: #ffffff;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: #4338ca;
+    }
+
+    .hero {
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      font-size: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .header {
+        padding: 12px 18px;
+      }
+      .nav-list {
+        gap: 14px;
+      }
+      .dropdown-menu {
+        min-width: 0;
+        max-width: 95vw;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-circle"></div>
+    <span>FreeConvert</span>
+  </div>
+
+  <nav>
+    <ul class="nav-list">
+      <!-- пункт с кликающим mega‑меню -->
+      <li class="nav-item dropdown" id="convert-dropdown">
+        <button class="nav-link" type="button">Convert</button>
+
+        <div class="dropdown-menu">
+          <div class="dropdown-column">
+            <h4>Video & Audio</h4>
+            <a href="#">Video Converter</a>
+            <a href="#">Audio Converter</a>
+            <a href="#">MP3 Converter</a>
+            <a href="#">MP4 to MP3</a>
+            <a href="#">MOV to MP4</a>
+          </div>
+
+          <div class="dropdown-column">
+            <h4>Image</h4>
+            <a href="#">Image Converter</a>
+            <a href="#">WEBP to PNG</a>
+            <a href="#">PNG to SVG</a>
+            <a href="#">HEIC to JPG</a>
+            <a href="#">SVG Converter</a>
+          </div>
+
+          <div class="dropdown-column">
+            <h4>PDF & Documents</h4>
+            <a href="#">PDF Converter</a>
+            <a href="#">PDF to Word</a>
+            <a href="#">PDF to JPG</a>
+            <a href="#">EPUB to PDF</a>
+            <a href="#">DOCX to PDF</a>
+          </div>
+
+          <div class="dropdown-column">
+            <h4>GIF</h4>
+            <a href="#">Video to GIF</a>
+            <a href="#">MP4 to GIF</a>
+            <a href="#">Image to GIF</a>
+            <a href="#">GIF to MP4</a>
+          </div>
+        </div>
+      </li>
+
+      <li class="nav-item"><a class="simple-link" href="#">Compress</a></li>
+      <li class="nav-item"><a class="simple-link" href="#">Tools</a></li>
+      <li class="nav-item"><a class="simple-link" href="#">API</a></li>
+      <li class="nav-item"><a class="simple-link" href="#">Pricing</a></li>
+    </ul>
+  </nav>
+
+  <div class="right-actions">
+    <button class="btn-outline">Log In</button>
+    <button class="btn-primary">Sign Up</button>
+  </div>
+</header>
+
+<div class="hero">
+  Здесь контент страницы
+</div>
+
+<script>
+  // открытие/закрытие по клику
+  const dropdown = document.getElementById('convert-dropdown');
+  const trigger = dropdown.querySelector('.nav-link');
+
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();                // не даём событию всплыть
+    dropdown.classList.toggle('open');  // переключаем класс
+  });
+
+  // клик по документу закрывает меню
+  document.addEventListener('click', function () {
+    dropdown.classList.remove('open');
+  });
+
+  // чтобы клик внутри меню не закрывал его сразу
+  dropdown.querySelector('.dropdown-menu')
+    .addEventListener('click', function (e) {
+      e.stopPropagation();
+    });
+</script>
+
+</body>
+</html>
