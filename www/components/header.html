@@ -3,9 +3,60 @@
             <a href="/"><img src="/img/Rowline.png" alt="Rowline" width="150" height="auto"></a>
     </div>
 
-    <nav>   
-        <a href="/html/pdf-converter">PDF</a>
-        <a href="/html/xlsx2xml">XLSX to XML</a>
+    <nav class="dropdown-nav">
+        <button class="dropdown-btn" aria-label="Menu">
+            <span>Convert</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6"></path>
+            </svg>
+        </button>
+        <div class="dropdown-content">
+            <div class="dropdown-column">
+                <div class="dropdown-category">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V9Z"/>
+                        <polyline points="13 2 13 9 20 9"/>
+                    </svg>
+                    <h3>PDF & Documents</h3>
+                </div>
+                <a href="/html/pdf-converter">PDF Converter</a>
+                <a href="/html/pdf-to-excel">PDF to Excel</a>
+            </div>
+
+            <div class="dropdown-column">
+                <div class="dropdown-category">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <h3>Data Tools</h3>
+                </div>
+                <a href="/html/xlsx2xml">XLSX to XML</a>
+            </div>
+
+            <div class="dropdown-column">
+                <div class="dropdown-category">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2.18" ry="2.18"/>
+                        <line x1="12" y1="15" x2="12" y2="15.01"/>
+                    </svg>
+                    <h3>Media</h3>
+                </div>
+                <a href="/html/gif-converter">GIF Converter</a>
+            </div>
+
+            <div class="dropdown-column">
+                <div class="dropdown-category">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    <h3>More</h3>
+                </div>
+                <a href="/html/about">About</a>
+                <a href="/html/privacy">Privacy</a>
+            </div>
+        </div>
     </nav>
 
     <button class="theme-toggle" type="button" title="Toggle theme" aria-label="Toggle theme">

@@ -7,6 +7,22 @@ header>div{left:20px;position:absolute}
 header nav{display:flex;flex:1;gap:16px;justify-content:center}
 header nav a{white-space:nowrap}
 
+/* Dropdown Navigation */
+.dropdown-nav{position:relative;display:flex;align-items:center;justify-content:center}
+.dropdown-btn{appearance:none;background:none;border:none;color:#0d7377;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;font-size:1rem;font-weight:500;transition:all .2s ease;color:#0d7377}
+.dropdown-btn:hover{color:#57d0d6}
+.dropdown-btn svg{transition:transform .3s ease}
+.dropdown-btn.active svg{transform:rotate(180deg)}
+.dropdown-content{background-color:#fff;border:1px solid #e0e0e0;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.15);display:none;position:absolute;right:-50px;top:110%;z-index:1000;padding:20px;grid-template-columns:repeat(4, 160px);gap:20px;width:max-content;animation:slideDown .2s ease}
+.dropdown-content.show{display:grid}
+.dropdown-column{display:flex;flex-direction:column;gap:10px}
+.dropdown-category{display:flex;flex-direction:column;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #f0f0f0}
+.dropdown-category h3{margin:0;font-size:.95rem;color:#2c2e3b;font-weight:600;display:flex;align-items:center;gap:8px}
+.dropdown-category svg{width:18px;height:18px;color:#57d0d6}
+.dropdown-content a{color:#555;display:block;padding:8px 0;text-decoration:none;transition:all .2s ease;white-space:nowrap;font-size:.9rem}
+.dropdown-content a:hover{color:#57d0d6;padding-left:4px;font-weight:500}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
 /* Theme toggle (header button) */
 .theme-toggle{--theme-toggle__expand--duration:500ms;appearance:none;background:transparent;border:none;color:#2c2e3b;cursor:pointer;display:flex;align-items:center;justify-content:center;margin:0;padding:0;transition:color .3s}
 .theme-toggle:focus{outline:none}
