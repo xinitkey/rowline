@@ -76,8 +76,10 @@ document.addEventListener('DOMContentLoaded', function() {
         removeBtn.addEventListener('click', () => {
             pdfFile.value = '';
             info.remove();
-            const convertBtn = document.getElementById('convertPdfBtn');
+            const convertBtn = document.getElementById('convertBtn');
             if (convertBtn) convertBtn.remove();
+            // Hide analyze button
+            if (analyzeBtn) analyzeBtn.style.display = 'none';
             resultSection.style.display = 'none';
             analysisSection.style.display = 'none';
             hidePdfPreview();
@@ -93,19 +95,24 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function showButtons() {
         // Remove existing buttons
-        const existingConvert = document.getElementById('convertPdfBtn');
+        const existingConvert = document.getElementById('convertBtn');
         const existingAnalyze = document.getElementById('analyzeBtn');
-        
+
         if (!existingConvert) {
             const convertBtn = document.createElement('button');
-            convertBtn.id = 'convertPdfBtn';
+            convertBtn.id = 'convertBtn';
             convertBtn.type = 'button';
-            convertBtn.className = 'convert-btn';
+            convertBtn.className = 'convert-btn visible';
             convertBtn.textContent = 'Convert to Excel';
             convertBtn.style.marginTop = '1rem';
             convertBtn.addEventListener('click', handleConvert);
-            
+
             uploadContainer.appendChild(convertBtn);
+        }
+
+        // Show analyze button
+        if (analyzeBtn) {
+            analyzeBtn.style.display = 'block';
         }
     }
 
@@ -239,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pages = pagesInput.value || 'all';
         const flavor = flavorSelect.value;
 
-        const convertBtn = document.getElementById('convertPdfBtn');
+        const convertBtn = document.getElementById('convertBtn');
         if (convertBtn) {
             convertBtn.disabled = true;
             convertBtn.textContent = 'Converting...';

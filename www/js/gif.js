@@ -74,7 +74,7 @@ document.getElementById('videoFile').addEventListener('change', (e) => {
       const videoPreview = document.getElementById('videoPreview');
       const videoFileName = document.getElementById('videoFileName');
       const videoPreviewContainer = document.getElementById('videoPreviewContainer');
-      const submitBtn = document.getElementById('submitBtn');
+      const convertBtn = document.getElementById('convertBtn');
 
       // Create object URL and set video source
       const videoUrl = URL.createObjectURL(file);
@@ -84,9 +84,9 @@ document.getElementById('videoFile').addEventListener('change', (e) => {
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       videoFileName.textContent = `File: ${file.name} (${fileSizeMB} MB)`;
 
-      // Show preview container and submit button
+      // Show preview container and convert button
       videoPreviewContainer.style.display = 'block';
-      submitBtn.style.display = 'block';
+      convertBtn.style.display = 'block';
     }
 });
 
