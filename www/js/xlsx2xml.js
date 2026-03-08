@@ -456,9 +456,8 @@ class XlsxConverter {
         const info = document.getElementById('fileInfo');
         if (info) info.remove();
 
-        const btn = document.getElementById('convertBtn');
-        if (btn) btn.remove();
-        
+        this.hideConvertButton();
+
         console.log('File selection cleared');
     }
 
@@ -476,11 +475,19 @@ class XlsxConverter {
         const btn = document.createElement('button');
         btn.id = 'convertBtn';
         btn.type = 'button';
-        btn.className = 'convert-btn';
+        btn.className = 'convert-btn visible';
         btn.textContent = 'Convert';
         btn.addEventListener('click', () => this.convert());
-        
+
         container.appendChild(btn);
+    }
+
+    /**
+     * Hide convert button
+     */
+    hideConvertButton() {
+        const existing = document.getElementById('convertBtn');
+        if (existing) existing.remove();
     }
 
     /**

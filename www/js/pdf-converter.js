@@ -90,19 +90,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear current file selection
         const existing = document.getElementById('fileInfo');
         if (existing) existing.remove();
-        const convertBtn = document.getElementById('convertPdfBtn');
+        const convertBtn = document.getElementById('convertBtn');
         if (convertBtn) convertBtn.remove();
         resultSection.style.display = 'none';
         hideError();
-        
+
         // Reset merge files when changing operation
         if (operation !== 'merge') {
             currentMergeFiles = [];
             pdfFiles.value = '';
         }
-        
-        // Show appropriate button for current operation
-        showConvertButton();
     }
     /**
      * Move file up in merge list
@@ -167,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pdfFiles.files.length === 0) {
             const existing = document.getElementById('fileInfo');
             if (existing) existing.remove();
-            const convertBtn = document.getElementById('convertPdfBtn');
+            const convertBtn = document.getElementById('convertBtn');
             if (convertBtn) convertBtn.remove();
             resultSection.style.display = 'none';
             hideError();
@@ -177,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
             currentMergeFiles = [];
             const existing = document.getElementById('fileInfo');
             if (existing) existing.remove();
-            const convertBtn = document.getElementById('convertPdfBtn');
+            const convertBtn = document.getElementById('convertBtn');
             if (convertBtn) convertBtn.remove();
         } else {
             showFileInfo(Array.from(pdfFiles.files));
@@ -395,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const fileInput = operation === 'merge' ? pdfFiles : pdfFile;
                     fileInput.value = '';
                     info.remove();
-                    const convertBtn = document.getElementById('convertPdfBtn');
+                    const convertBtn = document.getElementById('convertBtn');
                     if (convertBtn) convertBtn.remove();
                     resultSection.style.display = 'none';
                     hideError();
@@ -412,19 +409,19 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function showConvertButton() {
         // Remove existing button
-        const existing = document.getElementById('convertPdfBtn');
+        const existing = document.getElementById('convertBtn');
         if (existing) existing.remove();
 
         const operation = document.querySelector('input[name="operation"]:checked').value;
         const btn = document.createElement('button');
-        btn.id = 'convertPdfBtn';
+        btn.id = 'convertBtn';
         btn.type = 'button';
-        btn.className = 'convert-btn';
+        btn.className = 'convert-btn visible';
         btn.textContent = operation === 'convert' ? 'Convert to PDF' :
                          operation === 'split' ? 'Split PDF' : 'Merge PDFs';
         btn.style.marginTop = '1rem';
         btn.addEventListener('click', handleConvert);
-        
+
         uploadContainer.appendChild(btn);
     }
 
@@ -500,10 +497,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        const convertBtn = document.getElementById('convertPdfBtn');
+        const convertBtn = document.getElementById('convertBtn');
         if (convertBtn) {
             convertBtn.disabled = true;
-            convertBtn.textContent = operation === 'convert' ? 'Converting...' : 
+            convertBtn.textContent = operation === 'convert' ? 'Converting...' :
                                    operation === 'split' ? 'Splitting...' : 'Merging...';
         }
 

@@ -15,7 +15,7 @@
             }
         })();
     </script>
-    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/styles.css">
 
     <link rel="icon" type="image/png" href="../img/favicon-96x96.png" sizes="96x96" />
     <link rel="icon" type="image/svg+xml" href="../img/favicon.svg" />
@@ -122,59 +122,36 @@
     
     <div id="footer-placeholder"></div>
     <script src="../js/components.js"></script>
-    <script src="../js/main.js"></script>
+    <script src="../js/xlsx2xml.js"></script>
     <script>
-        // Ensure DOM is ready before attaching event listener
+        // Template download functionality
         function initTemplateDownload() {
             const form = document.getElementById('templateDownloadForm');
             const select = document.getElementById('templateSelect');
-            
-            if (!form) {
-                console.warn('Template download form not found');
-                return;
-            }
-            
-            if (!select) {
-                console.warn('Template select not found');
-                return;
-            }
 
-            console.log('Template select element found:', select);
-            console.log('Template select value:', select.value);
-            console.log('Template select options:', select.options.length);
+            if (!form) return;
+            if (!select) return;
 
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                console.log('Form submitted');
-                
+
                 const selectedValue = select.value;
-                console.log('Selected value:', selectedValue);
-                
-                // If select is empty, get first option
                 let fileUrl = selectedValue;
                 if (!fileUrl && select.options.length > 0) {
                     fileUrl = select.options[0].value;
-                    console.log('Using first option:', fileUrl);
                 }
-                
-                console.log('Download URL:', fileUrl);
-                
+
                 if (fileUrl) {
                     try {
                         const link = document.createElement('a');
                         link.href = fileUrl;
                         link.download = fileUrl.split('/').pop();
-                        console.log('Download filename:', link.download);
-                        
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        console.log('Download triggered successfully');
                     } catch (error) {
                         console.error('Error during download:', error);
                     }
-                } else {
-                    console.warn('No file URL found');
                 }
             });
         }

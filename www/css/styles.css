@@ -1,19 +1,37 @@
 /* -----    CORE RESETS ----- */
 *{box-sizing:border-box}
 
+/* Global design tokens */
+:root
+    {
+        --site-bg: #f0f0f0;
+        --text-color: #2c2e3b;
+        --muted-color: #6b7280;
+        --accent-color: #6a78f3;
+        --action-color: #43DDCB;
+        --card-bg: #ffffff;
+        --card-radius: 12px;
+        --card-padding: 1.5rem;
+        --card-shadow: 0 6px 18px rgba(0,0,0,0.06);
+        --container-radius: 50px;
+        --container-padding: 2rem;
+        --site-gap: 1.5rem;
+    }
+
 /* -----    HEADER  ----- */
 header
     {
         align-items:center;
         background-color:#cacaca; /* Header background color*/
         display:flex;
-        justify-content:center;
+        justify-content:space-between;
         padding:1rem 20px;
         position: fixed; /* Header fix na odnom meste*/
         top: 0;
         left: 0;
         right: 0;          /* или width: 100%; */
         z-index: 1000;     /* чтобы перекрывать контент */
+        text-decoration: none;
     }
 [data-theme="dark"] header
     {
@@ -24,91 +42,197 @@ header>div /* Logo left*/
         left:20px;
         position:absolute;
     }
-header nav /* Ссылки по центру */
+/* wrapper around the convert dropdown; About will be positioned absolutely so
+   Convert stays put. */
+.header-links /* Ссылки по центру */
     {
         display:flex;
-        flex:1;
-        gap:16px;
-        justify-content:center;
+        flex:0;
+        /* gap no longer affects Convert because About is taken out of flow */
+        justify-content:flex-start;
+        position:relative;          /* anchor for the absolute About link */
+        margin-left:200px;           /* подгони под реальную ширину логотипа */
     }
-header nav a
+/* individual links inside the header-links container; About will be
+   positioned separately. */
+.header-links a
     {
         white-space:nowrap;
         color: #0d7377; /* Header link color, light theme */
     }
-[data-theme="dark"] header nav a
+[data-theme="dark"] .header-links a
     {
         color: #57d0d6; /* Header link color, dark theme */
+    }
+/* styling for the About link, placed absolutely to the right of Convert */
+.header-links a.nav-link
+    {
+        text-decoration: none;
+        color: #0d7377; /* Header link color, light theme */
+        white-space: nowrap;
+        position:absolute;
+        left:calc(100% + 16px); /* some space beyond the Convert button */
+        top:50%;
+        transform:translateY(-50%);
+    }
+[data-theme="dark"] .header-links a.nav-link
+    {
+        color: #57d0d6; /* Header link color, dark theme */
+    }
+/* make "Convert" button text same color in dark mode */
+[data-theme="dark"] .dropdown-btn
+    {
+        color: #57d0d6;
     }
 
 /* -----    DROPDOWN MENU                ----- */
 
-.dropdown-menu
+.dropdown-nav
     {
-        position: absolute;
-        left: 0;
-        top: 100%;
-        margin-top: 16px;
-        padding: 24px 32px;
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-        min-width: 760px;
-        gap: 32px;
-        display: none; 
+        position:relative;
+        display:flex;
+        align-items:center;
+        justify-content:center
     }
-
-.dropdown.open .dropdown-menu
+.dropdown-btn
     {
-        display: flex; 
+        appearance:none;
+        background:none;
+        border:none;
+        color:#0d7377;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        gap:6px;
+        padding:0;
+        font-size:1rem;
+        font-weight:500;
+        transition:all .2s ease;
+        color:#0d7377
     }
-
+.dropdown-btn:hover
+    {
+        color:#57d0d6
+    }
+.dropdown-btn svg
+    {
+        transition:transform .3s ease
+    }
+.dropdown-btn.active svg
+    {
+        transform:rotate(180deg)
+    }
+.dropdown-content
+    {
+        background-color:#fff;
+        border:1px solid #e0e0e0;
+        border-radius:12px;
+        box-shadow:0 12px 32px #00000026;
+        display:none;
+        position:absolute;
+        /* align menu’s left top corner with the little arrow on the button
+           instead of centering it under the whole button */
+        left:100%;
+        /* subtract arrow+gap width (≈22px) so the menu begins directly
+           under the arrow rather than its right edge */
+        transform:translateX(-22px);
+        top:110%;
+        z-index:1000;
+        padding:20px;
+        grid-template-columns:repeat(4, 160px);
+        gap:20px;
+        width:max-content;
+        animation:slideDown .2s ease
+    }
+.dropdown-content.show
+    {
+        display:grid
+    }
 .dropdown-column
     {
-        min-width: 170px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+        display:flex;
+        flex-direction:column;
+        gap:10px
     }
-.dropdown-column h4
+.dropdown-category
     {
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #0d7377;
-        margin-bottom: 8px;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        margin-bottom:8px;
+        padding-bottom:8px;
+        border-bottom:2px solid #f0f0f0}
+.dropdown-category h3
+    {
+        margin:0;
+        font-size:.95rem;
+        color:#2c2e3b;
+        font-weight:600;
+        display:flex;
+        align-items:center;
+        gap:8px
     }
-.dropdown-column a
+.dropdown-category svg
     {
-        font-size: 14px;
-        color: #111827;
-        text-decoration: none;
-        padding: 3px 0;
-        white-space: nowrap;
+        width:18px;
+        height:18px;
+        color:#57d0d6
     }
-.dropdown-column a:hover
+.dropdown-content a
     {
-        color: #0d7377;
+        color:#555;
+        display:block;
+        padding:8px 0;
+        text-decoration:none;
+        transition:all .2s ease;
+        white-space:nowrap;
+        font-size:.9rem
     }
-.nav-item a.simple-link
+.dropdown-content a:hover
     {
-        text-decoration: none;
-        color: #111827;
-        padding: 8px 0;
-        display: inline-block;
-    }
-.nav-item a.simple-link:hover
-    {
-        color: #4f46e5;
+        color:#57d0d6;
+        padding-left:4px;
+        font-weight:500
     }
 
-.right-actions
+/* -----    DROPDOWN MENU DARK THEME    ----- */
+[data-theme="dark"] .dropdown-content
     {
-        display: flex;
-        gap: 12px;
-        align-items: center;
+        background-color:#1a1b26;
+        border:1px solid #2d2d3d;
+        box-shadow:0 12px 32px #00000066;
     }
+[data-theme="dark"] .dropdown-category
+    {
+        border-bottom-color:#2d2d3d;
+    }
+[data-theme="dark"] .dropdown-category h3
+    {
+        color:#c0caf5;
+    }
+[data-theme="dark"] .dropdown-content a
+    {
+        color:#a9b1d6;
+    }
+[data-theme="dark"] .dropdown-content a:hover
+    {
+        color:#57d0d6;
+    }
+
+@keyframes slideDown
+    {
+        from
+            {
+                opacity:0;
+                transform:translateY(-8px)
+            }
+            to
+            {
+                opacity:1;
+                transform:translateY(0)
+            }
+        }
+
 /* -----    THEME TOGGLE HEADER BUTTON  ----- */
 
 .theme-toggle
@@ -213,4 +337,349 @@ article
         max-width:800px;
         text-align:center;
         width:100%;
+    }
+
+/* Ensure lists inside centered containers are left-aligned for readability */
+article ul,
+article ol,
+.description-container ul,
+.feature-card ul,
+.content-card ul,
+.about-container ul
+    {
+        text-align: left; /* override article's center alignment */
+        margin-left: 1.25rem;
+        padding-left: 1.25rem;
+        list-style-position: outside;
+    }
+
+.description-container li,
+.feature-card li,
+.content-card li
+    {
+        margin-bottom: 0.5rem;
+    }
+
+/* --------------------------------------------------
+   Site-wide utility and component styles
+   These were previously scattered in other CSS files.
+   -------------------------------------------------- */
+
+/* Headings and subtitles */
+.subtitle
+    {
+        color:#4a4a4a;
+        font-size:1.1rem;
+        margin-bottom:3rem;
+    }
+
+/* Containers */
+.upload-container
+    {
+        background-color: var(--card-bg);
+        border: 1px solid rgba(0,0,0,0.06);
+        border-radius: var(--container-radius);
+        padding: calc(var(--container-padding) + 1rem) 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        position: relative;
+        z-index: 1;
+    }
+.upload-container.highlight
+    {
+        background-color: #e9eefc;
+        border-color: var(--accent-color);
+    }
+
+.file-input-wrapper
+    {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+.file-input-wrapper input[type=file]
+    {
+        position: absolute;
+        top: 0;
+        right: 0;
+        min-width: 100%;
+        min-height: 100%;
+        font-size: 100px;
+        text-align: right;
+        filter: alpha(opacity=0);
+        opacity: 0;
+        outline: none;
+        background: white;
+        cursor: inherit;
+        display: block;
+    }
+
+.btn-upload,
+.convert-btn
+    {
+        background-color: #43DDCB;
+        color: black;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 50px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none !important;
+        transition: background-color .3s ease;
+    }
+
+/* Hide convert button by default - shown by JS after file upload */
+.convert-btn
+    {
+        display: none !important;
+    }
+
+/* Show convert button when file is uploaded - JS adds this class */
+.convert-btn.visible
+    {
+        display: inline-flex !important;
+    }
+.btn-upload:hover,
+.convert-btn:hover
+    {
+        background: #56d0d6;
+        text-decoration: none !important;
+    }
+
+.info-text
+    {
+        font-size: 0.9rem;
+        color: #555;
+        margin-bottom: 0.5rem;
+    }
+.terms-text
+    {
+        font-size: 0.8rem;
+        color: #777;
+        margin-top: 1rem;
+    }
+
+.description-container
+    {
+        background-color: var(--card-bg);
+        border: 1px solid rgba(0,0,0,0.04);
+        border-radius: var(--container-radius);
+        padding: var(--container-padding);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+/* tiny helpers */
+.active
+    {
+        color: #0d7377; /* keep old accent colour for consistency */
+        font-weight: 700;
+    }
+.hidden
+    {
+        display: none !important;
+    }
+.error-text
+    {
+        color: red;
+    }
+
+.template-select
+    {
+        margin-top: 1rem;
+        padding: 0.5rem;
+        font-size: 1rem;
+        border: 2px solid #9ca3cd;
+        border-radius: 4px;
+        width: 100%;
+        max-width: 600px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+/* PDF converter / operation UI */
+.operation-selector
+    {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        justify-content: center;
+    }
+.operation-option
+    {
+        align-items: center;
+        border: 2px solid #9ca3cd;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        gap: .5rem;
+        padding: .5rem 1rem;
+        transition: all .2s;
+        background-color: #E3E2E2;
+    }
+
+/* feature grid (used on index and about pages) */
+.features-grid
+    {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+.feature-card
+    {
+        background: var(--card-bg);
+        padding: var(--card-padding);
+        border-radius: var(--card-radius);
+        text-align: left;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+.feature-card:hover
+    {
+        transform: translateY(-5px);
+    }
+.feature-card h3
+    {
+        color: var(--accent-color);
+        margin-top: 0;
+    }
+.contact-section
+    {
+        text-align: center;
+    }
+
+.feature-header
+    {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+.feature-icon
+    {
+        width: 24px;
+        height: 24px;
+        display: block;
+        flex-shrink: 0;
+    }
+
+/* file listing for multiple downloads */
+.file-list
+    {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+.file-item
+    {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 4px;
+        border: 1px solid #e9ecef;
+    }
+.file-item[data-theme='dark']
+    {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+.download-link
+    {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 500;
+        flex: 1;
+    }
+.download-link:hover
+    {
+        text-decoration: underline;
+        color: #0056b3;
+    }
+
+
+/* dark‑theme overrides for the new components */
+[data-theme="dark"] .subtitle
+    {
+        color: #a9b1d6;
+    }
+[data-theme="dark"] .upload-container
+    {
+        background-color: #24283b;
+        border-color: #565f89;
+    }
+[data-theme="dark"] .upload-container.highlight
+    {
+        border-color: #7aa2f7;
+        background-color: #2a2e4a;
+    }
+[data-theme="dark"] .description-container
+    {
+        background-color: #24283b;
+    }
+[data-theme="dark"] .btn-upload,
+[data-theme="dark"] .convert-btn
+    {
+        background-color: #1abc9c;
+        color: #1a1b26;
+    }
+[data-theme="dark"] .btn-upload:hover,
+[data-theme="dark"] .convert-btn:hover
+    {
+        background-color: #16a085;
+    }
+[data-theme="dark"] a
+    {
+        color: #7aa2f7;
+    }
+[data-theme="dark"] .template-select
+    {
+
+/* design token overrides for dark theme */
+[data-theme="dark"]
+    {
+        --card-bg: #1f2335;
+        --card-shadow: none;
+        --accent-color: #7aa2f7;
+        --action-color: #16a085;
+    }
+        background-color: #24283b;
+        border-color: #565f89;
+        color: #c0caf5;
+    }
+[data-theme="dark"] .info-text
+    {
+        color: #a9b1d6;
+    }
+[data-theme="dark"] .terms-text
+    {
+        color: #787c99;
+    }
+[data-theme='dark'] .file-item
+    {
+        background: #2d3748;
+        border-color: #4a5568;
+    }
+[data-theme='dark'] .download-link
+    {
+        color: #63b3ed;
+    }
+[data-theme='dark'] .download-link:hover
+    {
+        color: #4299e1;
     }
