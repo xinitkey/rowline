@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import aiofiles
+import uuid
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, Response
@@ -22,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src import XlsxToXmlConverter, XmlFiller, any_to_pdf, any_to_pdf_async, ConversionProgress, UnsupportedFormat, split_pdf, merge_pdf, convert_pdf_to_excel, get_pdf_table_info
 from src.gif.video_to_gif import video_to_gif
+from src.media_converters.mp4_to_mp3 import mp4_to_mp3
 
 # Path to static files (frontend)
 STATIC_DIR = Path(__file__).parent.parent / "www"
@@ -30,10 +32,6 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 TEMP_DIR = Path(__file__).parent.parent / "temp"
 
 # Thread pool for heavy operations
-import os
-import platform
-
-# Adaptive configuration based on platform and environment
 import os
 import platform
 
@@ -295,7 +293,6 @@ async def convert_xlsx_to_xml(
     # Limit concurrent operations
     async with operation_semaphore:
         # Create unique temp folder for this request
-        import uuid
         request_id = str(uuid.uuid4())
         work_dir = TEMP_DIR / request_id
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -1086,7 +1083,6 @@ async def convert_pdf_to_excel_endpoint(
     # Limit concurrent operations
     async with operation_semaphore:
         # Create unique temp folder for this request
-        import uuid
         request_id = str(uuid.uuid4())
         work_dir = TEMP_DIR / request_id
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -1283,6 +1279,69 @@ async def convert_video_to_gif(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+
+
+
+@app.post("/api/mp4-to-mp3")
+async def convert_mp4_to_mp3(
+    file: UploadFile = File(..., description="MP4 video file to extract audio from")
+):
+    """
+    Extract audio from MP4 video file and return as MP3.
+
+    - **file**: MP4 video file
+    """
+    async with operation_semaphore:
+        import uuid
+        request_id = str(uuid.uuid4())
+        work_dir = TEMP_DIR / request_id
+        work_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            input_path = work_dir / file.filename
+            content = await file.read()
+
+            file_size = len(content)
+            if file_size > 500 * 1024 * 1024:
+                raise HTTPException(
+                    status_code=413,
+                    detail="File too large. Maximum size is 500MB."
+                )
+
+            await save_file_content_async(content, input_path)
+
+            output_path = work_dir / f"{input_path.stem}.mp3"
+
+            try:
+                await run_cpu_bound_task(
+                    mp4_to_mp3,
+                    str(input_path),
+                    str(output_path)
+                )
+            except Exception as e:
+                safe_detail = str(e).encode('utf-8', errors='replace').decode('utf-8')
+                raise HTTPException(status_code=500, detail=f"Conversion failed: {safe_detail}")
+
+            if not output_path.exists():
+                raise HTTPException(status_code=500, detail="Failed to create MP3 file")
+
+            safe_filename = "".join(c for c in output_path.name if ord(c) < 128)
+            if not safe_filename:
+                safe_filename = "audio.mp3"
+
+            return FileResponse(
+                path=output_path,
+                filename=safe_filename,
+                media_type="audio/mpeg",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{safe_filename}"'
+                }
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
 
 # Mount static files (frontend)
 if STATIC_DIR.exists():
