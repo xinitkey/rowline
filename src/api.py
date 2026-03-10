@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 import aiofiles
-import uuid
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, BackgroundTasks
 from fastapi.responses import FileResponse, StreamingResponse, Response
@@ -32,6 +31,10 @@ TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 TEMP_DIR = Path(__file__).parent.parent / "temp"
 
 # Thread pool for heavy operations
+import os
+import platform
+
+# Adaptive configuration based on platform and environment
 import os
 import platform
 
@@ -293,6 +296,7 @@ async def convert_xlsx_to_xml(
     # Limit concurrent operations
     async with operation_semaphore:
         # Create unique temp folder for this request
+        import uuid
         request_id = str(uuid.uuid4())
         work_dir = TEMP_DIR / request_id
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -1083,6 +1087,7 @@ async def convert_pdf_to_excel_endpoint(
     # Limit concurrent operations
     async with operation_semaphore:
         # Create unique temp folder for this request
+        import uuid
         request_id = str(uuid.uuid4())
         work_dir = TEMP_DIR / request_id
         work_dir.mkdir(parents=True, exist_ok=True)
