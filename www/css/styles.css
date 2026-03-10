@@ -319,7 +319,7 @@ main
 
 footer
     {
-        background-color: #43DDCB; /* Background color, light and night theme */
+        background-color: #0d7377; /* Background color, light and night theme */
         color: #ffffff;
         font-size: .8rem;
         padding: 2rem;
@@ -372,7 +372,7 @@ article ol,
 /* Headings and subtitles */
 h1
     {
-        color: var(--action-color);
+        color: #303030;
     }
 [data-theme="dark"] h1
     {
@@ -485,7 +485,7 @@ h1
 
 .description-container
     {
-        background-color: var(--card-bg);
+        background-color: #ededed;
         border: 1px solid rgba(0,0,0,0.04);
         border-radius: var(--container-radius);
         padding: var(--container-padding);
@@ -497,7 +497,7 @@ h1
     }
 .description-container h2
     {
-        color: var(--action-color);
+        color: #0d7377;
     }
 [data-theme="dark"] .description-container h2
     {
@@ -579,7 +579,7 @@ h1
     }
 .feature-card
     {
-        background: var(--card-bg);
+        background: #ededed;
         padding: var(--card-padding);
         border-radius: var(--card-radius);
         text-align: left;
@@ -592,8 +592,10 @@ h1
     }
 .feature-card h3
     {
-        color: var(--action-color);
-        margin-top: 0;
+        color: #0d7377;
+        margin: 0;
+        display: flex;
+        align-items: center;
     }
 [data-theme="dark"] .feature-card
     {
