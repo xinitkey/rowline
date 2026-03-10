@@ -438,14 +438,14 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <p>${result.message}</p>
             <div style="margin-bottom: 1rem;">
-                <a href="/download-zip/${result.session_id}" class="download-link" style="background: #28a745; margin-right: 1rem;">
+                <a href="/download-zip/${result.session_id}" class="download-link zip-download" style="background: #28a745; margin-right: 1rem;">
                     📦 Download All as ZIP
                 </a>
             </div>
             <div class="file-list">
-                ${result.files.map(file => `
+                ${result.files.map((file, index) => `
                     <div class="file-item">
-                        <a href="${file.url}" download="${file.filename}" class="download-link" target="_blank">
+                        <a href="${file.url}" class="download-link file-download" data-index="${index}" data-url="${file.url}" data-filename="${file.filename}" target="_blank">
                             📄 ${file.filename} (${formatFileSize(file.size)})
                         </a>
                         <button class="preview-btn" onclick="loadPdfPreview('${file.url}')" style="margin-left: 10px; background: #007acc; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Preview</button>
@@ -453,6 +453,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 `).join('')}
             </div>
         `;
+
+        // Add click handlers for download links
+        const zipLink = resultSection.querySelector('.zip-download');
+        if (zipLink) {
+            zipLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.location.href = this.href;
+            });
+        }
+
+        const fileLinks = resultSection.querySelectorAll('.file-download');
+        fileLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const url = this.getAttribute('data-url');
+                const filename = this.getAttribute('data-filename');
+                
+                fetch(url)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const blobUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+                    });
+            });
+        });
+
         resultSection.style.display = 'block';
     }
 
@@ -557,33 +589,56 @@ document.addEventListener('DOMContentLoaded', function() {
                     pdfViewer.src = url;
                     pdfViewerContainer.style.display = 'block';
 
+                    // Add click handler to force download
+                    downloadLink.onclick = function(e) {
+                        e.preventDefault();
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'split_result.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        // Clean up blob URL after download
+                        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+                    };
+
                     resultSection.style.display = 'block';
                 }
             } else {
                 // For convert and merge, download the file directly
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
-                downloadLink.href = url;
 
                 // Set appropriate filename
+                let filename;
                 if (operation === 'convert') {
                     const file = fileInput.files[0];
-                    downloadLink.download = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
-
-                    // Display PDF preview
-                    const pdfViewer = document.getElementById('pdfViewer');
-                    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
-                    pdfViewer.src = url;
-                    pdfViewerContainer.style.display = 'block';
-                } else if (operation === 'merge') {
-                    downloadLink.download = 'merged.pdf';
-                    
-                    // Display PDF preview for merged files (same as convert)
-                    const pdfViewer = document.getElementById('pdfViewer');
-                    const pdfViewerContainer = document.getElementById('pdfViewerContainer');
-                    pdfViewer.src = url;
-                    pdfViewerContainer.style.display = 'block';
+                    filename = file.name.replace(/\.[^/.]+$/, '') + '.pdf';
+                } else {
+                    filename = 'merged.pdf';
                 }
+
+                downloadLink.href = url;
+                downloadLink.download = filename;
+
+                // Display PDF preview
+                const pdfViewer = document.getElementById('pdfViewer');
+                const pdfViewerContainer = document.getElementById('pdfViewerContainer');
+                pdfViewer.src = url;
+                pdfViewerContainer.style.display = 'block';
+
+                // Add click handler to force download
+                downloadLink.onclick = function(e) {
+                    e.preventDefault();
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    // Clean up blob URL after download
+                    setTimeout(() => window.URL.revokeObjectURL(url), 100);
+                };
 
                 resultSection.style.display = 'block';
             }
