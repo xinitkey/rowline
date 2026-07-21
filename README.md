@@ -191,7 +191,7 @@ asyncio.run(convert_with_progress())
 ## Project Structure
 
 ```
-rowline.me/
+rowline/
 ├── main.py                     # Main entry point
 ├── requirements.txt            # Python dependencies
 ├── README.md                   # Documentation
