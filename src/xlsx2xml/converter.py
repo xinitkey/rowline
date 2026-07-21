@@ -1,7 +1,3 @@
-"""
-Основной модуль конвертера XLSX в XML.
-"""
-
 from pathlib import Path
 from typing import Optional
 
@@ -10,8 +6,6 @@ from .xml_writer import XmlWriter
 
 
 class XlsxToXmlConverter:
-    """Главный класс конвертера XLSX в XML формат Report."""
-
     def __init__(
         self,
         encoding: str = "utf-8",
@@ -19,26 +13,12 @@ class XlsxToXmlConverter:
         budget_year: str = "",
         period: str = "",
         organization_id: str = "",
-        report_date: str = ""
+        report_date: str = "",
     ):
-        """
-        Инициализация конвертера.
-
-        Args:
-            encoding: Кодировка выходного XML файла.
-            pretty_print: Форматировать XML с отступами.
-            budget_year: Бюджетный год для отчёта.
-            period: Период отчёта.
-            organization_id: ID организации.
-            report_date: Дата отчёта.
-        """
         self.xml_writer = XmlWriter(
-            encoding=encoding,
-            pretty_print=pretty_print,
-            budget_year=budget_year,
-            period=period,
-            organization_id=organization_id,
-            report_date=report_date
+            encoding=encoding, pretty_print=pretty_print,
+            budget_year=budget_year, period=period,
+            organization_id=organization_id, report_date=report_date,
         )
 
     def convert(
@@ -48,37 +28,14 @@ class XlsxToXmlConverter:
         sheet_name: Optional[str] = None,
         header_row: int = 8,
         start_row: int = 9,
-        report_code: Optional[str] = None
+        report_code: Optional[str] = None,
     ) -> Path:
-        """
-        Конвертирует XLSX файл в XML формат Report.
-
-        Args:
-            input_path: Путь к входному XLSX файлу.
-            output_path: Путь к выходному XML файлу.
-            sheet_name: Имя листа для конвертации.
-            header_row: Номер строки с заголовками (по умолчанию 8).
-            start_row: Номер строки начала данных (по умолчанию 9).
-            report_code: Код отчёта.
-
-        Returns:
-            Путь к созданному XML файлу.
-        """
         input_path = Path(input_path)
-
-        if output_path is None:
-            output_path = input_path.with_suffix(".xml")
-        else:
-            output_path = Path(output_path)
+        output_path = Path(output_path) if output_path else input_path.with_suffix(".xml")
 
         with XlsxReader(input_path) as reader:
-            sheet_data = reader.read_sheet(
-                sheet_name=sheet_name,
-                header_row=header_row,
-                start_row=start_row,
-                num_columns=9
-            )
-            return self.xml_writer.write(sheet_data, output_path, report_code)
+            sheet = reader.read_sheet(sheet_name, header_row, start_row, num_columns=9)
+            return self.xml_writer.write(sheet, output_path, report_code)
 
     def convert_all_sheets(
         self,
@@ -86,61 +43,29 @@ class XlsxToXmlConverter:
         output_path: Optional[str | Path] = None,
         header_row: int = 8,
         start_row: int = 9,
-        separate_files: bool = False
+        separate_files: bool = False,
     ) -> list[Path]:
-        """
-        Конвертирует все листы XLSX файла в XML.
-        """
         input_path = Path(input_path)
-
         with XlsxReader(input_path) as reader:
             sheets = list(reader.read_all_sheets(header_row, start_row, num_columns=9))
 
-            if separate_files:
-                return self._write_separate_files(input_path, sheets, output_path)
-            else:
-                if output_path is None:
-                    output_path = input_path.with_suffix(".xml")
-                result_path = self.xml_writer.write_multiple_sheets(sheets, output_path)
-                return [result_path]
+        if separate_files:
+            return self._write_separate_files(input_path, sheets, output_path)
 
-    def _write_separate_files(
-        self,
-        input_path: Path,
-        sheets: list[SheetData],
-        output_dir: Optional[str | Path]
-    ) -> list[Path]:
-        """Записывает каждый лист в отдельный файл."""
-        if output_dir is None:
-            output_dir = input_path.parent / f"{input_path.stem}_xml"
-        else:
-            output_dir = Path(output_dir)
+        out = Path(output_path) if output_path else input_path.with_suffix(".xml")
+        return [self.xml_writer.write_multiple_sheets(sheets, out)]
 
-        output_dir.mkdir(parents=True, exist_ok=True)
+    def _write_separate_files(self, input_path: Path, sheets: list[SheetData], output_dir: Optional[str | Path]) -> list[Path]:
+        out_dir = Path(output_dir) if output_dir else input_path.parent / f"{input_path.stem}_xml"
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-        result_paths = []
+        results = []
         for sheet in sheets:
-            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in sheet.name)
-            output_path = output_dir / f"{safe_name}.xml"
-            self.xml_writer.write(sheet, output_path)
-            result_paths.append(output_path)
+            safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in sheet.name)
+            results.append(self.xml_writer.write(sheet, out_dir / f"{safe}.xml"))
+        return results
 
-        return result_paths
-
-    def to_xml_string(
-        self,
-        input_path: str | Path,
-        sheet_name: Optional[str] = None,
-        header_row: int = 8,
-        start_row: int = 9,
-        report_code: Optional[str] = None
-    ) -> str:
-        """Конвертирует XLSX в XML строку."""
+    def to_xml_string(self, input_path: str | Path, sheet_name: Optional[str] = None, header_row: int = 8, start_row: int = 9, report_code: Optional[str] = None) -> str:
         with XlsxReader(input_path) as reader:
-            sheet_data = reader.read_sheet(
-                sheet_name=sheet_name,
-                header_row=header_row,
-                start_row=start_row,
-                num_columns=9
-            )
-            return self.xml_writer.to_string(sheet_data, report_code)
+            sheet = reader.read_sheet(sheet_name, header_row, start_row, num_columns=9)
+            return self.xml_writer.to_string(sheet, report_code)

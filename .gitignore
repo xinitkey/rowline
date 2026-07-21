@@ -1,7 +1,6 @@
 *.pyc
 temp/
 __pycache__/
-temp/
 tmp/
 *.tmp
 *.bak
