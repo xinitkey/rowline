@@ -44,19 +44,19 @@ async function convertVideoToGif(videoFile, options = {}, url) {
 }
 
 /**
- * Отправка одного видео файла на бэкенд (FastAPI/Flask и т.п.)
- * @param {File|Blob} videoFile - объект файла (video/mp4, video/webm и т.д.)
- * @param {string} url - адрес эндпоинта, например "http://localhost:8000/upload"
- * @returns {Promise<any>} - JSON ответ сервера
+ * Upload a single video file to the backend
+ * @param {File|Blob} videoFile - video file object
+ * @param {string} url - API endpoint URL
+ * @returns {Promise<any>} - JSON response
  */
 async function uploadVideo(videoFile, url) {
   const formData = new FormData();
-  // "file" — имя поля, которое ожидает бэкенд
+  // backend expects field name "file"
   formData.append('file', videoFile);
 
   const resp = await fetch(url, {
     method: 'POST',
-    body: formData, // multipart/form-data, заголовок выставится автоматически
+    body: formData, // multipart/form-data, content-type set automatically
   });
 
   if (!resp.ok) {

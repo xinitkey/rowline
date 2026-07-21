@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Header с mega menu (click)</title>
+  <title>Header with mega menu (click)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
@@ -17,7 +17,7 @@
       background: #f3f4f6;
     }
 
-    /* Хедер */
+    /* Header */
     .header {
       display: flex;
       align-items: center;
@@ -45,7 +45,7 @@
       background: #6366f1;
     }
 
-    /* Навигация */
+    /* Navigation */
     .nav-list {
       list-style: none;
       display: flex;
@@ -82,7 +82,7 @@
       color: #4f46e5;
     }
 
-    /* Выпадающее mega‑меню */
+    /* Dropdown mega menu */
     .dropdown-menu {
       position: absolute;
       left: 0;
@@ -94,15 +94,15 @@
       box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
       min-width: 760px;
       gap: 32px;
-      display: none;          /* по умолчанию скрыто */
+      display: none;          /* hidden by default */
     }
 
-    /* когда у dropdown есть класс .open — показываем */
+    /* show when dropdown has .open class */
     .dropdown.open .dropdown-menu {
       display: flex;
     }
 
-    /* Колонки */
+    /* Columns */
     .dropdown-column {
       min-width: 170px;
       display: flex;
@@ -131,7 +131,7 @@
       color: #4f46e5;
     }
 
-    /* Обычные пункты */
+    /* Regular items */
     .nav-item a.simple-link {
       text-decoration: none;
       color: #111827;
@@ -143,7 +143,7 @@
       color: #4f46e5;
     }
 
-    /* Кнопки справа */
+    /* Right buttons */
     .right-actions {
       display: flex;
       gap: 12px;
@@ -206,7 +206,7 @@
 
   <nav>
     <ul class="nav-list">
-      <!-- пункт с кликающим mega‑меню -->
+      <!-- item with clickable mega menu -->
       <li class="nav-item dropdown" id="convert-dropdown">
         <button class="nav-link" type="button">Convert</button>
 
@@ -262,25 +262,25 @@
 </header>
 
 <div class="hero">
-  Здесь контент страницы
+  Page content goes here
 </div>
 
 <script>
-  // открытие/закрытие по клику
+  // toggle open/close on click
   const dropdown = document.getElementById('convert-dropdown');
   const trigger = dropdown.querySelector('.nav-link');
 
   trigger.addEventListener('click', function (e) {
-    e.stopPropagation();                // не даём событию всплыть
-    dropdown.classList.toggle('open');  // переключаем класс
+    e.stopPropagation();                // prevent event bubbling
+    dropdown.classList.toggle('open');  // toggle class
   });
 
-  // клик по документу закрывает меню
+  // clicking document closes menu
   document.addEventListener('click', function () {
     dropdown.classList.remove('open');
   });
 
-  // чтобы клик внутри меню не закрывал его сразу
+  // prevent click inside menu from closing it
   dropdown.querySelector('.dropdown-menu')
     .addEventListener('click', function (e) {
       e.stopPropagation();

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CLI модуль для XLSX to XML Converter / Filler.
+CLI module for XLSX to XML Converter / Filler.
 """
 
 import argparse
@@ -11,74 +11,74 @@ from src import XlsxToXmlConverter, XmlFiller
 
 
 def parse_arguments() -> argparse.Namespace:
-    """Парсит аргументы командной строки."""
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Заполнение XML шаблона данными из XLSX / Конвертер XLSX в XML.",
+        description="Fill XML template with XLSX data / Convert XLSX to XML.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Режим заполнения шаблона (по умолчанию):
-  %(prog)s data.xlsx -t template.xml -o output_dir   # Заполнить шаблон данными
+Template fill mode (default):
+  %(prog)s data.xlsx -t template.xml -o output_dir   # Fill template with data
 
-Режим конвертации:
-  %(prog)s data.xlsx --convert -o output_dir         # Создать XML из XLSX
+Convert mode:
+  %(prog)s data.xlsx --convert -o output_dir         # Create XML from XLSX
 
-Примеры:
+Examples:
   %(prog)s data.xlsx -t RF-FD-048BL.xml -o results/
   %(prog)s data.xlsx -t template.xml -o result.xml --single -s "Sheet1"
         """
     )
 
-    parser.add_argument("input", type=str, help="Путь к входному XLSX файлу")
+    parser.add_argument("input", type=str, help="Path to input XLSX file")
     parser.add_argument("-t", "--template", type=str, default=None, 
-                        help="Путь к XML шаблону (для режима заполнения)")
+                        help="Path to XML template (for fill mode)")
     parser.add_argument("-o", "--output", type=str, default=None, 
-                        help="Путь к выходной папке/файлу")
+                        help="Path to output directory/file")
     parser.add_argument("-s", "--sheet", type=str, default=None, 
-                        help="Имя листа (по умолчанию: все листы)")
+                        help="Sheet name (default: all sheets)")
     parser.add_argument("--single", action="store_true", 
-                        help="Обработать только один лист")
+                        help="Process only a single sheet")
     
-    # Параметры для режима заполнения
+    # Template fill mode parameters
     parser.add_argument("--code-col", type=int, default=6, 
-                        help="Столбец с code (1-based, по умолчанию: 6=F)")
+                        help="Column with code (1-based, default: 6=F)")
     parser.add_argument("--data-start-col", type=int, default=7, 
-                        help="Начальный столбец данных (1-based, по умолчанию: 7=G)")
+                        help="Data start column (1-based, default: 7=G)")
     parser.add_argument("--data-end-col", type=int, default=12, 
-                        help="Конечный столбец данных (1-based, по умолчанию: 12=L)")
+                        help="Data end column (1-based, default: 12=L)")
     parser.add_argument("--start-row", type=int, default=9, 
-                        help="Строка начала данных (по умолчанию: 9)")
+                        help="First data row (default: 9)")
     
-    # Режим конвертации
+    # Convert mode
     parser.add_argument("--convert", action="store_true", 
-                        help="Режим конвертации (создание нового XML)")
-    parser.add_argument("--budget-year", type=str, default="", help="Бюджетный год")
-    parser.add_argument("--period", type=str, default="", help="Период отчёта")
-    parser.add_argument("--org-id", type=str, default="", help="ID организации")
-    parser.add_argument("--date", type=str, default="", help="Дата отчёта")
+                        help="Convert mode (create new XML)")
+    parser.add_argument("--budget-year", type=str, default="", help="Budget year")
+    parser.add_argument("--period", type=str, default="", help="Report period")
+    parser.add_argument("--org-id", type=str, default="", help="Organization ID")
+    parser.add_argument("--date", type=str, default="", help="Report date")
     
-    parser.add_argument("-v", "--verbose", action="store_true", help="Подробный вывод")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
 
     return parser.parse_args()
 
 
 def run_fill_mode(args) -> int:
-    """Режим заполнения XML шаблона."""
+    """Template fill mode."""
     input_path = Path(args.input)
     
     if not args.template:
-        print("Ошибка: Укажите путь к XML шаблону с помощью -t/--template", file=sys.stderr)
+        print("Error: Specify XML template path with -t/--template", file=sys.stderr)
         return 1
     
     template_path = Path(args.template)
     if not template_path.exists():
-        print(f"Ошибка: Шаблон не найден: {template_path}", file=sys.stderr)
+        print(f"Error: Template not found: {template_path}", file=sys.stderr)
         return 1
 
     filler = XmlFiller(template_path)
     
     try:
         if args.single or args.sheet:
-            # Один лист
+            # Single sheet
             output_path = args.output
             if not output_path:
                 output_path = input_path.with_suffix(".xml")
@@ -92,9 +92,9 @@ def run_fill_mode(args) -> int:
                 data_end_column=args.data_end_col,
                 start_row=args.start_row
             )
-            print(f"Создан: {result_path}")
+            print(f"Created: {result_path}")
         else:
-            # Все листы
+            # All sheets
             output_dir = args.output
             if not output_dir:
                 output_dir = input_path.parent / f"{input_path.stem}_xml"
@@ -107,15 +107,15 @@ def run_fill_mode(args) -> int:
                 data_end_column=args.data_end_col,
                 start_row=args.start_row
             )
-            print(f"Обработано листов: {len(result_paths)}")
+            print(f"Sheets processed: {len(result_paths)}")
             if args.verbose:
                 for path in result_paths:
-                    print(f"  → {path}")
+                    print(f"  \u2192 {path}")
         
         return 0
         
     except Exception as e:
-        print(f"Ошибка: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -123,7 +123,7 @@ def run_fill_mode(args) -> int:
 
 
 def run_convert_mode(args) -> int:
-    """Режим конвертации XLSX в XML."""
+    """XLSX to XML convert mode."""
     input_path = Path(args.input)
     
     converter = XlsxToXmlConverter(
@@ -145,7 +145,7 @@ def run_convert_mode(args) -> int:
                 sheet_name=args.sheet,
                 start_row=args.start_row
             )
-            print(f"Создан: {result_path}")
+            print(f"Created: {result_path}")
         else:
             result_paths = converter.convert_all_sheets(
                 input_path=input_path,
@@ -153,15 +153,15 @@ def run_convert_mode(args) -> int:
                 start_row=args.start_row,
                 separate_files=True
             )
-            print(f"Конвертировано листов: {len(result_paths)}")
+            print(f"Sheets converted: {len(result_paths)}")
             if args.verbose:
                 for path in result_paths:
-                    print(f"  → {path}")
+                    print(f"  \u2192 {path}")
 
         return 0
 
     except Exception as e:
-        print(f"Ошибка: {e}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
         if args.verbose:
             import traceback
             traceback.print_exc()
@@ -169,16 +169,16 @@ def run_convert_mode(args) -> int:
 
 
 def cli_main() -> int:
-    """Главная функция CLI."""
+    """Main CLI entry point."""
     args = parse_arguments()
 
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Ошибка: Файл не найден: {input_path}", file=sys.stderr)
+        print(f"Error: File not found: {input_path}", file=sys.stderr)
         return 1
 
     if not input_path.suffix.lower() == ".xlsx":
-        print(f"Ошибка: Ожидается файл .xlsx, получен: {input_path.suffix}", file=sys.stderr)
+        print(f"Error: Expected .xlsx file, got: {input_path.suffix}", file=sys.stderr)
         return 1
 
     if args.convert:

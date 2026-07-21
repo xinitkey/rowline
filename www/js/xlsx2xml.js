@@ -87,7 +87,7 @@ class XlsxConverter {
         section.innerHTML = `
             <div class="progress-container">
                 <div class="spinner"></div>
-                <p id="progressText">Конвертация...</p>
+                <p id="progressText">Converting...</p>
             </div>
         `;
         
@@ -101,7 +101,7 @@ class XlsxConverter {
             const style = document.createElement('style');
             style.id = 'converter-styles';
             style.textContent = `
-/* Контейнер прогресса в стиле description-container */
+/* Progress container styled like description-container */
 .progress-container {
   background-color: #E3E2E2;
   border: 0 solid #9ca3cd;
@@ -113,12 +113,12 @@ class XlsxConverter {
   justify-content: center;
   margin-top: 1rem;
   margin-bottom: 1rem;
-  gap: 1rem;              /* расстояние между элементами внутри */
+  gap: 1rem;              /* spacing between inner elements */
 }
 [data-theme="dark"] .progress-container {
     background-color: #24283b; }
 
-/* Спиннер */
+/* Spinner */
 .spinner {
   width: 40px;
   height: 40px;
@@ -128,13 +128,13 @@ class XlsxConverter {
   animation: spin 1s linear infinite;
 }
 
-/* Анимация спиннера */
+/* Spinner animation */
 @keyframes spin {
   0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Блок результата */
+/* Result block */
 #resultSection {
   background-color: #CCE3D6;
   padding: 1.5rem;
@@ -149,7 +149,7 @@ class XlsxConverter {
 
 
 
-/* Блок ошибки */
+/* Error block */
 #errorSection {
   background-color: rgb(231, 191, 197);
   padding: 1.5rem;
@@ -159,7 +159,7 @@ class XlsxConverter {
   text-align: center;
 }
 
-/* Инфа о выбранном файле */
+/* Selected file info */
 .file-selected {
   margin-top: 0;
   padding: 0.5rem 1rem;
@@ -169,7 +169,7 @@ class XlsxConverter {
   font-size: 0.9rem;
 }
 
-/* Селект шаблона */
+/* Template select */
 .template-select {
   margin-top: 0;
   padding: 0.5rem 0.75rem;
@@ -184,7 +184,7 @@ class XlsxConverter {
   background-color: #ffffff;
 }
 
-/* Кнопка конвертации в выключенном состоянии */
+/* Disabled convert button */
 .convert-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;

@@ -22,15 +22,15 @@
 header
     {
         align-items:center;
-        background-color:#cacaca; /* Header background color*/
+        background-color:#cacaca; /* Header background color */
         display:flex;
         justify-content:space-between;
         padding:1rem 20px;
-        position: fixed; /* Header fix na odnom meste*/
+        position: fixed; /* Keep header fixed at top */
         top: 0;
         left: 0;
-        right: 0;          /* или width: 100%; */
-        z-index: 1000;     /* чтобы перекрывать контент */
+        right: 0;          /* or width: 100%; */
+        z-index: 1000;     /* overlay content */
         text-decoration: none;
     }
 [data-theme="dark"] header
@@ -44,14 +44,14 @@ header>div /* Logo left*/
     }
 /* wrapper around the convert dropdown; About will be positioned absolutely so
    Convert stays put. */
-.header-links /* Ссылки по центру */
+.header-links /* Centered links */
     {
         display:flex;
         flex:0;
         /* gap no longer affects Convert because About is taken out of flow */
         justify-content:flex-start;
         position:relative;          /* anchor for the absolute About link */
-        margin-left:200px;           /* подгони под реальную ширину логотипа */
+        margin-left:200px;           /* adjust to actual logo width */
     }
 /* individual links inside the header-links container; About will be
    positioned separately. */
